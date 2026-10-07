@@ -461,6 +461,34 @@ export class Level {
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+    this.markGround(x, z, radius * 2.2);
+  }
+
+  /**
+   * Note a changed square of ground (world units) so only that patch is re-uploaded to the GPU.
+   * `dirtyRects` (canvas pixels) keeps separate patches apart and merges ones that overlap;
+   * past 12 patches they collapse into one. The game uploads and clears them.
+   */
+  markGround(x, z, half) {
+    const w = this.ground.width, h = this.ground.height;
+    const x0 = Math.max(0, Math.floor((x - half) * PX) - 2), x1 = Math.min(w, Math.ceil((x + half) * PX) + 2);
+    const y0 = Math.max(0, Math.floor((z - half) * PX) - 2), y1 = Math.min(h, Math.ceil((z + half) * PX) + 2);
+    if (x1 <= x0 || y1 <= y0) return;
+    const rects = (this.dirtyRects ||= []);
+    let r = { x0, y0, x1, y1 };
+    for (let i = rects.length - 1; i >= 0; i--) {
+      const o = rects[i];
+      if (o.x0 <= r.x1 && r.x0 <= o.x1 && o.y0 <= r.y1 && r.y0 <= o.y1) {
+        r = { x0: Math.min(o.x0, r.x0), y0: Math.min(o.y0, r.y0), x1: Math.max(o.x1, r.x1), y1: Math.max(o.y1, r.y1) };
+        rects.splice(i, 1);
+      }
+    }
+    rects.push(r);
+    if (rects.length > 12) {
+      const u = rects.reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }));
+      rects.length = 0;
+      rects.push(u);
+    }
     this.groundDirty = true;
   }
 
@@ -961,7 +989,7 @@ export class Level {
     ctx.globalAlpha = 0.75; // the wave still has something left to finish
     ctx.drawImage(this.groundColor, 0, 0);
     ctx.restore();
-    this.groundDirty = true;
+    this.markGround(cx, cz, radius);
   }
 
   /** Recolour everything within `radius` of (cx, cz). Call each frame while the wave grows. */
@@ -969,17 +997,21 @@ export class Level {
     for (const set of [this.sceneryColors, this.glowColors]) {
       if (!set) continue;
       const { full, grey, pos, attr, t: tt } = set;
-      const arr = attr.array;
-      for (let i = 0; i < pos.length; i += 3) {
-        const d = Math.hypot(pos[i] - cx, pos[i + 2] - cz);
-        if (d > radius) continue;
-        const t = Math.max(tt[i / 3], Math.min(1, (radius - d) / band));
-        tt[i / 3] = t;
+      const arr = attr.array, r2 = radius * radius;
+      let changed = false;
+      for (let i = 0, v = 0; i < pos.length; i += 3, v++) {
+        if (tt[v] >= 1) continue; // already fully coloured
+        const dx = pos[i] - cx, dz = pos[i + 2] - cz, d2 = dx * dx + dz * dz;
+        if (d2 > r2) continue;
+        const t = Math.max(tt[v], Math.min(1, (radius - Math.sqrt(d2)) / band));
+        if (t === tt[v]) continue;
+        tt[v] = t;
+        changed = true;
         arr[i] = grey[i] + (full[i] - grey[i]) * t;
         arr[i + 1] = grey[i + 1] + (full[i + 1] - grey[i + 1]) * t;
         arr[i + 2] = grey[i + 2] + (full[i + 2] - grey[i + 2]) * t;
       }
-      attr.needsUpdate = true;
+      if (changed) attr.needsUpdate = true;
     }
     const ctx = this.groundCtx;
     ctx.save();
@@ -990,6 +1022,6 @@ export class Level {
     ctx.globalCompositeOperation = 'source-atop';
     ctx.drawImage(this.groundColor, 0, 0);
     ctx.restore();
-    this.groundDirty = true;
+    this.markGround(cx, cz, radius);
   }
 }

@@ -24,7 +24,17 @@ export class Hud {
     this.lineTimer = 0;
     this.toastTimer = 0;
     this.handlers = {};
-    $('.weapon', this.root).addEventListener('click', () => this.handlers.weapon?.());
+    // weapon button: tap cycles; press and hold opens a picker of every loaded weapon
+    const wb = $('.weapon', this.root);
+    let holdTimer = null, held = false;
+    wb.addEventListener('pointerdown', () => {
+      held = false;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => { held = true; this.openWeaponPicker(); }, 350);
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) wb.addEventListener(ev, () => clearTimeout(holdTimer));
+    wb.addEventListener('click', () => { if (held) { held = false; return; } this.closeWeaponPicker(); this.handlers.weapon?.(); });
+    wb.addEventListener('contextmenu', (e) => e.preventDefault());
     $('.pause-btn', this.root).addEventListener('click', () => this.handlers.pause?.());
     $('.map-btn', this.root).addEventListener('click', () => this.handlers.map?.());
     $('.prompt', this.root).addEventListener('click', () => this.handlers.interact?.());
@@ -42,6 +52,31 @@ export class Hud {
   }
 
   on(name, fn) { this.handlers[name] = fn; }
+
+  /** A row of loaded weapons above the weapon button (from the `weaponList` handler). */
+  openWeaponPicker() {
+    const list = this.handlers.weaponList?.() || [];
+    if (list.length < 2) return;
+    this.closeWeaponPicker();
+    const el = document.createElement('div');
+    el.className = 'weapon-picker';
+    for (const w of list) {
+      const b = document.createElement('button');
+      b.className = w.current ? 'on' : '';
+      b.innerHTML = `<span class="dot" style="background:${w.color}"></span>${w.name}<small>${Number.isFinite(w.ammo) ? w.ammo : '∞'}</small>`;
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.handlers.selectWeapon?.(w.id); this.closeWeaponPicker(); });
+      el.appendChild(b);
+    }
+    $('.bottom-right', this.root).prepend(el);
+    this.picker = el;
+    this.pickerTimer = setTimeout(() => this.closeWeaponPicker(), 4000);
+  }
+
+  closeWeaponPicker() {
+    clearTimeout(this.pickerTimer);
+    this.picker?.remove();
+    this.picker = null;
+  }
 
   show() { this.root.classList.remove('hidden'); }
   hide() { this.root.classList.add('hidden'); }
@@ -181,11 +216,11 @@ export class Hud {
     this.dialogue.classList.add('hidden');
   }
 
-  toast(text) {
+  toast(text, seconds = 1.6) {
     const el = $('.toast', this.root);
     el.textContent = text;
     el.classList.add('show');
-    this.toastTimer = 1.6;
+    this.toastTimer = seconds;
   }
 
   flashDamage() {

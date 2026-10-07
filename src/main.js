@@ -70,6 +70,7 @@ settings.onChange((key, v) => { if (key === 'sfx') sfx.setVolume(v); if (key ===
 for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, () => sfx.unlock(), { once: true, capture: true });
 const screens = new Screens(sfx);
 const input = new Input(renderer.domElement, document.getElementById('sticks'));
+document.body.classList.toggle('touch', input.touch); // thumb-sized buttons, no keyboard hints
 const game = new Game(renderer, hud, input, sfx);
 let last = performance.now();
 
@@ -78,6 +79,7 @@ const flushInput = () => setTimeout(() => input.pressedOnce.clear(), 0);
 
 // ------------------------------------------------------------------ flow
 
+let rotateTipShown = false;
 function playLevel(id) {
   sfx.unlock();
   music.play(trackFor(LEVELS[id]));
@@ -88,6 +90,10 @@ function playLevel(id) {
   game.load(LEVELS[id]);
   flushInput();
   last = performance.now();
+  if (input.touch && innerHeight > innerWidth && !rotateTipShown) {
+    rotateTipShown = true;
+    setTimeout(() => hud.toast('Tip: turn your phone sideways for a wider view', 4), 1500);
+  }
 }
 
 function toHub() {
@@ -240,6 +246,8 @@ game.events.complete = (stats) => {
 hud.on('pause', pause);
 hud.on('map', () => (game.isHub ? openWorld() : openFullMap()));
 hud.on('weapon', () => game.state === 'play' && game.cycleWeapon());
+hud.on('weaponList', () => (game.state === 'play' && !game.isHub ? game.weaponList() : []));
+hud.on('selectWeapon', (id) => game.state === 'play' && game.selectWeapon(id));
 hud.on('item', (id) => game.useItem(id));
 hud.on('interact', () => game.interact());
 
@@ -255,11 +263,32 @@ showTitle();
 
 // ------------------------------------------------------------------ loop
 
+/**
+ * Render resolution. "auto" starts at the screen's pixel ratio (max 2) and steps down by 0.25
+ * when frames run long (under ~45 fps for a second), then back up after 8 s of headroom;
+ * "sharp" keeps full resolution, "fast" renders at 1× with smaller shadows.
+ */
+const MAX_DPR = Math.min(devicePixelRatio || 1, 2);
+let autoDpr = MAX_DPR, slowT = 0, fastT = 0;
+function applyResolution() {
+  const want = settings.graphics === 'sharp' ? MAX_DPR : settings.graphics === 'fast' ? Math.min(1, MAX_DPR) : autoDpr;
+  if (renderer.getPixelRatio() !== want) renderer.setPixelRatio(want);
+}
+function adaptResolution(raw) {
+  if (settings.graphics !== 'auto' || game.state !== 'play' || raw > 0.25) return;
+  if (raw > 1 / 45) { slowT += raw; fastT = 0; } else { slowT = Math.max(0, slowT - raw * 0.5); if (raw < 1 / 55) fastT += raw; }
+  if (slowT > 1 && autoDpr > 0.75) { autoDpr = Math.max(0.75, autoDpr - 0.25); slowT = 0; applyResolution(); }
+  else if (fastT > 8 && autoDpr < MAX_DPR) { autoDpr = Math.min(MAX_DPR, autoDpr + 0.25); fastT = 0; applyResolution(); }
+}
+settings.onChange((key) => { if (key === 'graphics') { autoDpr = MAX_DPR; applyResolution(); } });
+applyResolution();
+
 let titleT = 0;
 renderer.setAnimationLoop(() => {
   // performance.now() rather than the rAF timestamp: after a hidden tab resumes the
   // timestamp can be older than `last`, and a negative dt blows the physics up to NaN.
   const now = performance.now();
+  adaptResolution((now - last) / 1000);
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
   last = now;
   if (input.pressed('Escape', 'KeyP', 'PadStart') && !screens.open) pause();
@@ -280,4 +309,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // handy for debugging from the console
-window.prismPaw = { game, save, screens, playLevel, toHub, renderer, music };
+window.prismPaw = { game, save, screens, playLevel, toHub, renderer, music, resolution: () => ({ dpr: renderer.getPixelRatio(), autoDpr, max: MAX_DPR }), adaptResolution };

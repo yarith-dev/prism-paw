@@ -1,6 +1,6 @@
 /** Player settings. Stored apart from the save so "New game" keeps them. */
 const KEY = 'prism-paw-settings-v1';
-const DEFAULTS = { music: 0.7, sfx: 0.8, shake: true, textSpeed: 'normal', musicTheme: 'original' };
+const DEFAULTS = { music: 0.7, sfx: 0.8, shake: true, textSpeed: 'normal', musicTheme: 'original', graphics: 'auto' };
 
 /** Comic caption typing speed in characters per 22 ms tick (0 = show at once). */
 export const TEXT_SPEEDS = { slow: 1, normal: 2, fast: 4, instant: 0 };

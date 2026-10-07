@@ -2,6 +2,9 @@
  * Unified input: keyboard + mouse, gamepad, and twin virtual sticks on touch screens.
  * World axes: screen-up is -z, screen-right is +x.
  */
+
+/** Virtual stick radius (px) and dead zone (fraction of the radius). */
+const STICK_R = 56, DEAD = 0.12;
 export class Input {
   constructor(canvas, stickLayer) {
     this.canvas = canvas;
@@ -49,12 +52,19 @@ export class Input {
           const s = this.sticks[side];
           if (!s || s.id !== t.identifier) continue;
           if (phase === 'end') { s.el.remove(); this.sticks[side] = null; continue; }
-          const R = 56;
-          let dx = t.clientX - s.ox, dy = t.clientY - s.oy;
-          const d = Math.hypot(dx, dy);
-          if (d > R) { dx *= R / d; dy *= R / d; }
-          s.x = dx / R; s.y = dy / R;
-          s.el.lastChild.style.transform = `translate(${dx}px, ${dy}px)`;
+          let dx = t.clientX - s.ox, dy = t.clientY - s.oy, d = Math.hypot(dx, dy);
+          // the base follows a thumb that drifts past the rim, so it never has to slide back
+          if (d > STICK_R * 1.25) {
+            const k = (d - STICK_R * 1.25) / d;
+            s.ox += dx * k; s.oy += dy * k;
+            s.el.style.left = `${s.ox}px`; s.el.style.top = `${s.oy}px`;
+            dx = t.clientX - s.ox; dy = t.clientY - s.oy; d = Math.hypot(dx, dy);
+          }
+          // a small dead zone, then the full 0..1 range
+          const m = Math.min(1, d / STICK_R), mag = m < DEAD ? 0 : (m - DEAD) / (1 - DEAD);
+          s.x = d ? (dx / d) * mag : 0; s.y = d ? (dy / d) * mag : 0;
+          const kx = d ? (dx / d) * m * STICK_R : 0, ky = d ? (dy / d) * m * STICK_R : 0;
+          s.el.lastChild.style.transform = `translate(${kx}px, ${ky}px)`;
         }
       }
     }

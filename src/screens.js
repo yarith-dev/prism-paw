@@ -222,6 +222,7 @@ export class Screens {
         <label class="setting"><span>Music</span><input type="range" min="0" max="1" step="0.05" data-key="music"><b></b></label>
         <div class="setting"><span>Music theme</span><div class="seg" data-key="musicTheme">${Object.entries(THEMES).map(([k, s]) => `<button data-v="${k}">${s.label}</button>`).join('')}</div></div>
         <label class="setting"><span>Sound effects</span><input type="range" min="0" max="1" step="0.05" data-key="sfx"><b></b></label>
+        <div class="setting"><span>Graphics</span><div class="seg" data-key="graphics"><button data-v="auto">Auto</button><button data-v="sharp">Sharp</button><button data-v="fast">Fast</button></div></div>
         <div class="setting"><span>Screen shake</span><div class="seg" data-key="shake"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
         <div class="setting"><span>Comic text</span><div class="seg" data-key="textSpeed">${Object.keys(TEXT_SPEEDS).map((k) => `<button data-v="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div></div>
         <div class="buttons"></div>
@@ -502,6 +503,17 @@ export class Screens {
     const list = [['Resume', onResume, true]];
     if (!isHub) list.push(['Restart mission', onRestart], ['Return to workshop', onWorkshop]);
     list.push(['Settings', () => this.settings(() => this.pause({ isHub, onResume, onRestart, onWorkshop, onTitle }))]);
+    // phones and tablets: fullscreen hides the browser bars (not available on iPhone Safari)
+    if (document.body.classList.contains('touch') && document.fullscreenEnabled) {
+      const full = !!document.fullscreenElement;
+      list.push([full ? 'Exit fullscreen' : 'Fullscreen', async () => {
+        try {
+          if (full) await document.exitFullscreen();
+          else { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape').catch(() => {}); }
+        } catch { /* refused */ }
+        onResume();
+      }]);
+    }
     list.push(['Title screen', onTitle]);
     this.buttons($('.buttons', el), list);
   }

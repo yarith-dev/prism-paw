@@ -364,7 +364,22 @@ button { font: inherit; color: inherit; }
   .comic-caption p { font-size: 15px; }
 }
 @media (max-width: 600px) and (orientation: portrait) {
-  .objectives { top: calc(120px + var(--safe-t)); max-width: calc(100vw - 32px); }
+  .objectives { top: calc(170px + var(--safe-t)); max-width: calc(100vw - 32px); }
+  .toast { white-space: normal; width: calc(100vw - 48px); text-align: center; font-size: 16px; line-height: 1.3; }
   .dialogue { width: calc(100vw - 32px); bottom: calc(150px + var(--safe-b)); }
   .charge { top: calc(190px + var(--safe-t)); }
 }
+
+/* ================= touch screens ================= */
+.touch .item small, .touch .weapon .swap, .touch .map-btn small { display: none; }
+.touch .item { width: 56px; height: 56px; }
+.touch .items { gap: 10px; }
+.touch .weapon { min-height: 54px; padding: 10px 16px; }
+.touch .corner-buttons button { height: 44px; min-width: 48px; }
+.touch .prompt { padding: 12px 22px; font-size: 17px; }
+@media (max-width: 900px) { .toast { white-space: normal; max-width: calc(100vw - 48px); text-align: center; } }
+.weapon-picker { position: absolute; right: 0; bottom: calc(100% + 8px); display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; gap: 6px; width: max-content; max-width: min(560px, calc(100vw - 32px)); animation: pop .15s ease-out; }
+.weapon-picker button { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: #fff; font-weight: 700; font-size: 15px; text-align: left; }
+.weapon-picker button.on { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow) inset; }
+.weapon-picker .dot { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.weapon-picker small { margin-left: auto; font-family: 'Silkscreen', monospace; font-size: 12px; opacity: .8; }

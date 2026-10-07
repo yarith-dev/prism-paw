@@ -23,6 +23,10 @@ export function model() {
   return api;
 }
 
+/** Two triangles per face: quad corners 0-1-2 and 0-2-3. */
+const TRI = [0, 1, 2, 0, 2, 3];
+const POPCOUNT = Array.from({ length: 64 }, (_, b) => b.toString(2).split('1').length - 1);
+
 const FACES = [
   { n: [1, 0, 0], v: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]] },
   { n: [-1, 0, 0], v: [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]] },
@@ -38,39 +42,68 @@ const FACES = [
  * so a model's feet at y=0 stand on the ground. `pivot` is subtracted first.
  */
 export function meshModel(mdl, scale, pivot = [0, 0, 0]) {
-  const buckets = { solid: { p: [], n: [], c: [] }, glow: { p: [], n: [], c: [] } };
-  const col = new THREE.Color();
-  for (const [key, hex] of mdl.m) {
-    const [x, y, z] = key.split(',').map(Number);
-    const b = GLOW.has(hex) ? buckets.glow : buckets.solid;
-    col.set(hex);
-    for (const f of FACES) {
-      if (mdl.m.has(`${x + f.n[0]},${y + f.n[1]},${z + f.n[2]}`)) continue;
-      const q = f.v.map(([vx, vy, vz]) => [
-        (x - 0.5 + vx - pivot[0]) * scale,
-        (y + vy - pivot[1]) * scale,
-        (z - 0.5 + vz - pivot[2]) * scale,
-      ]);
-      for (const i of [0, 1, 2, 0, 2, 3]) {
-        b.p.push(...q[i]);
-        b.n.push(...f.n);
-        b.c.push(col.r, col.g, col.b);
+  // numeric voxel keys: string keys cost six allocations per voxel in the neighbour test
+  const B = 1024, key = (x, y, z) => ((x + B) * 2048 + (y + B)) * 2048 + (z + B);
+  const n = mdl.m.size;
+  const X = new Int32Array(n), Y = new Int32Array(n), Z = new Int32Array(n), H = new Array(n);
+  const filled = new Set();
+  let k = 0;
+  for (const [str, hex] of mdl.m) {
+    const a = str.indexOf(','), b = str.indexOf(',', a + 1);
+    const x = +str.slice(0, a), y = +str.slice(a + 1, b), z = +str.slice(b + 1);
+    X[k] = x; Y[k] = y; Z[k] = z; H[k] = hex; k++;
+    filled.add(key(x, y, z));
+  }
+  // pass 1: which faces are exposed (bit per face), and how many per bucket
+  const mask = new Uint8Array(n), glow = new Uint8Array(n);
+  const faces = [0, 0];
+  for (let i = 0; i < n; i++) {
+    let bits = 0;
+    for (let f = 0; f < 6; f++) {
+      const d = FACES[f].n;
+      if (!filled.has(key(X[i] + d[0], Y[i] + d[1], Z[i] + d[2]))) bits |= 1 << f;
+    }
+    mask[i] = bits;
+    glow[i] = GLOW.has(H[i]) ? 1 : 0;
+    faces[glow[i]] += POPCOUNT[bits];
+  }
+  // pass 2: write straight into typed arrays (6 vertices per face)
+  const out = faces.map((count) => ({ p: new Float32Array(count * 18), n: new Float32Array(count * 18), c: new Float32Array(count * 18), o: 0 }));
+  const rgb = new Map(), col = new THREE.Color();
+  const [px, py, pz] = pivot;
+  for (let i = 0; i < n; i++) {
+    const bits = mask[i];
+    if (!bits) continue;
+    let c = rgb.get(H[i]);
+    if (!c) { col.set(H[i]); c = [col.r, col.g, col.b]; rgb.set(H[i], c); }
+    const b = out[glow[i]], x = X[i], y = Y[i], z = Z[i];
+    for (let f = 0; f < 6; f++) {
+      if (!(bits & (1 << f))) continue;
+      const F = FACES[f];
+      for (const vi of TRI) {
+        const v = F.v[vi], o = b.o;
+        b.p[o] = (x - 0.5 + v[0] - px) * scale; b.p[o + 1] = (y + v[1] - py) * scale; b.p[o + 2] = (z - 0.5 + v[2] - pz) * scale;
+        b.n[o] = F.n[0]; b.n[o + 1] = F.n[1]; b.n[o + 2] = F.n[2];
+        b.c[o] = c[0]; b.c[o + 1] = c[1]; b.c[o + 2] = c[2];
+        b.o = o + 3;
       }
     }
   }
   const toGeo = (b) => {
     if (!b.p.length) return null;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(b.p, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(b.n, 3));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(b.c, 3));
+    g.setAttribute('position', new THREE.BufferAttribute(b.p, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(b.n, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(b.c, 3));
     g.computeBoundingSphere();
     return g;
   };
+  const buckets = { solid: out[0], glow: out[1] };
   return { solid: toGeo(buckets.solid), glow: toGeo(buckets.glow) };
 }
 
-const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
+/** Shared by every glowing voxel part (never disposed). */
+export const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
 
 /**
  * Build a renderable group from meshed geometry. Each instance gets its own

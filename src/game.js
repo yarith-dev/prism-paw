@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { instance, setFlash } from './voxel.js';
+import { instance, setFlash, glowMaterial } from './voxel.js';
 import { MESH, MUZZLE, S, NPC, CITIZENS, PAINT_JARS } from './models.js';
 import { angleTo, pick, PAINT, GREYS, PLAYER_R } from './util.js';
 import { BOSSES } from './bosses/index.js';
@@ -131,9 +131,60 @@ export class Game {
 
   // ------------------------------------------------------------------ setup
 
+  /**
+   * Push painted ground to the GPU. Only the changed rectangle is copied (a full upload of a
+   * big level's ground canvas costs several ms); before the texture's first upload, or when
+   * most of it changed, the whole canvas goes up.
+   */
+  uploadGround() {
+    const lv = this.level, tex = lv.groundTex, rects = lv.dirtyRects || [];
+    lv.groundDirty = false;
+    lv.dirtyRects = [];
+    const W = tex.image.width, H = tex.image.height;
+    const ready = !!this.renderer.properties.get(tex).__webglTexture;
+    const area = rects.reduce((a, r) => a + (r.x1 - r.x0) * (r.y1 - r.y0), 0);
+    if (!rects.length || !ready || area > W * H * 0.5) { tex.needsUpdate = true; return; }
+    this.groundRegion ||= new THREE.Box2();
+    this.groundDst ||= new THREE.Vector2();
+    const mips = tex.generateMipmaps;
+    rects.forEach((r, i) => {
+      // rebuild mipmaps once, after the last patch; the texture is stored flipped (rows from the bottom)
+      tex.generateMipmaps = mips && i === rects.length - 1;
+      const y = H - r.y1;
+      this.groundRegion.min.set(r.x0, y);
+      this.groundRegion.max.set(r.x1, y + (r.y1 - r.y0));
+      this.groundDst.set(r.x0, y);
+      this.renderer.copyTextureToTexture(tex, tex, this.groundRegion, this.groundDst);
+    });
+    tex.generateMipmaps = mips;
+  }
+
+  /**
+   * Free the previous level's GPU resources: per-level geometry, every per-instance material,
+   * level textures and the sun's shadow map. Shared voxel models, the cached flat-colour
+   * materials and the constructor's bullet/beam assets are kept for the next level.
+   */
+  disposeScene(scene) {
+    const keep = new Set([glowMaterial, this.boltGeo, this.pelletGeo, this.globGeo, this.bubbleGeo, this.trapGeo, this.trapMat, this.vineMat, this.teleGeo, this.teleMat, this.beamTex, ...Object.values(this.mats)]);
+    this.beamMesh.traverse((o) => { if (o.isMesh) keep.add(o.geometry).add(o.material); });
+    const shared = (meshed) => { if (meshed?.solid) keep.add(meshed.solid); if (meshed?.glow) keep.add(meshed.glow); };
+    for (const v of Object.values(MESH)) (Array.isArray(v) ? v : [v]).forEach(shared);
+    for (const v of Object.values(NPC)) { shared(v.color); shared(v.grey); shared(v.holo); }
+    scene.traverse((o) => {
+      if (o.isLight && o.shadow?.map) { o.shadow.map.dispose(); o.shadow.map = null; }
+      if (o.geometry && !keep.has(o.geometry)) o.geometry.dispose();
+      for (const m of [].concat(o.material || [])) {
+        if (keep.has(m)) continue;
+        for (const k of ['map', 'alphaMap', 'emissiveMap']) if (m[k] && !keep.has(m[k])) m[k].dispose();
+        m.dispose();
+      }
+    });
+  }
+
   load(def) {
     this.def = def;
     this.isHub = !!def.hub;
+    if (this.scene) this.disposeScene(this.scene);
     if (this.level) this.level.dispose();
     const scene = (this.scene = new THREE.Scene());
     const nature = def.theme === 'jungle' || def.theme === 'ruins';
@@ -159,7 +210,8 @@ export class Game {
       this.sun.color.set('#7f9cff');
     }
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    const shadowSize = settings.graphics === 'fast' ? 1024 : 2048;
+    this.sun.shadow.mapSize.set(shadowSize, shadowSize);
     Object.assign(this.sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 140 });
     this.sun.shadow.bias = -0.0005;
     scene.add(this.sun, this.sun.target);
@@ -522,8 +574,7 @@ export class Game {
     this.updateCamera(dt);
     this.groundTimer += dt;
     if (this.level.groundDirty && this.groundTimer > 0.1) {
-      this.level.groundTex.needsUpdate = true;
-      this.level.groundDirty = false;
+      this.uploadGround();
       this.groundTimer = 0;
     }
     this.mapTimer -= dt;
@@ -760,6 +811,12 @@ export class Game {
   }
 
   syncItemsHud() { this.hud.setItems(save.data.items, this.isHub); }
+
+  /** Loaded weapons for the touch weapon picker. */
+  weaponList() {
+    return this.ownedWeapons().filter((id) => this.ammoOf(id) > 0)
+      .map((id) => ({ id, name: WEAPONS[id].name, color: WEAPONS[id].color, ammo: this.ammoOf(id), current: id === this.player.weapon }));
+  }
 
   useItem(id) {
     const pl = this.player;
@@ -1912,6 +1969,7 @@ export class Game {
     if (pl.dead || this.state !== 'play' || pl.jump) return;
     if (pl.shield > 0) { this.burst(pl.pos.x, 1.6, pl.pos.z, 3, ['#62f4ff', '#ffffff'], 3); return; }
     pl.hp = Math.max(0, pl.hp - dmg * this.threat.dmg);
+    if (this.input.usingTouch && settings.shake) navigator.vibrate?.(dmg >= 12 ? 45 : 20); // Android haptics
     pl.hurtFlash = 1;
     pl.vel.x += nx * 10; pl.vel.z += nz * 10;
     if (slow) pl.slow = Math.max(pl.slow, slow);
@@ -1986,6 +2044,7 @@ export class Game {
     const i = this.enemies.indexOf(e);
     if (i >= 0) this.enemies.splice(i, 1);
     this.scene.remove(e.group);
+    e.group.userData.material?.dispose();
     if (e.tele) { this.scene.remove(e.tele); e.tele = null; }
     e.group.userData.material?.dispose();
   }
@@ -2122,6 +2181,7 @@ export class Game {
         save.write();
       }
       this.scene.remove(p.group);
+      p.group.userData.material?.dispose();
       this.pickups.splice(i, 1);
     }
   }
