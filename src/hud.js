@@ -37,6 +37,9 @@ export class Hud {
     wb.addEventListener('contextmenu', (e) => e.preventDefault());
     $('.pause-btn', this.root).addEventListener('click', () => this.handlers.pause?.());
     $('.map-btn', this.root).addEventListener('click', () => this.handlers.map?.());
+    $('.minimap', this.root).addEventListener('click', () => this.handlers.map?.()); // tap the minimap for the full map
+    // compact (phone) HUD shows only the current objective; tap to see them all
+    $('.objectives', this.root).addEventListener('click', (e) => e.currentTarget.classList.toggle('open'));
     $('.prompt', this.root).addEventListener('click', () => this.handlers.interact?.());
     this.dialogue.addEventListener('click', () => this.nextLine());
     const items = $('.items', this.root);

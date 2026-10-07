@@ -58,6 +58,7 @@ button { font: inherit; color: inherit; }
 
 .top-right { position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .minimap { width: 200px; height: 124px; border-radius: 10px; overflow: hidden; border: 2px solid rgba(255,255,255,.55); background: #120c2c; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+.minimap { pointer-events: auto; cursor: pointer; }
 .minimap canvas { width: 100%; height: 100%; }
 #hud.hub .minimap { height: 90px; width: 136px; }
 .corner-buttons { display: flex; gap: 8px; }
@@ -383,3 +384,58 @@ button { font: inherit; color: inherit; }
 .weapon-picker button.on { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow) inset; }
 .weapon-picker .dot { width: 14px; height: 14px; border-radius: 4px; flex: none; }
 .weapon-picker small { margin-left: auto; font-family: 'Silkscreen', monospace; font-size: 12px; opacity: .8; }
+
+/* ================= compact HUD (phones) ================= */
+.compact .top-left { flex-direction: row; align-items: center; gap: 10px; top: calc(8px + var(--safe-t)); left: calc(10px + var(--safe-l)); }
+.compact .hp { width: 112px; height: 14px; border-width: 1.5px; border-radius: 5px; }
+.compact .hp-text { font-size: 9px; }
+.compact .currency { font-size: 12px; gap: 8px; }
+.compact .currency span { gap: 4px; }
+.compact .sparks i { width: 9px; height: 9px; }
+.compact .seeds i { width: 7px; height: 10px; }
+
+.compact .top-right { flex-direction: row-reverse; align-items: flex-start; gap: 6px; top: calc(8px + var(--safe-t)); right: calc(10px + var(--safe-r)); }
+.compact .minimap, .compact #hud.hub .minimap { width: 112px; height: 70px; border-width: 1.5px; border-radius: 8px; }
+.compact .map-btn { display: none; }
+.compact .corner-buttons button { height: 34px; min-width: 34px; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+
+.compact .objectives { left: calc(10px + var(--safe-l)); top: calc(30px + var(--safe-t)); transform: none; text-align: left; min-width: 0; max-width: calc(100vw - 190px); padding: 3px 9px 4px; border-radius: 9px; pointer-events: auto; cursor: pointer; }
+.compact .level-name, .compact .level-place { display: none; }
+.compact .objectives ul { font-size: 12px; line-height: 1.35; }
+.compact .objectives:not(.open) li.done { display: none; }
+.compact .objectives:not(.open) li:not(.done) ~ li { display: none; }
+.compact .objectives.open .level-name { display: block; font-size: 10px; }
+
+.compact .bossbar { top: calc(8px + var(--safe-t)); width: min(300px, 38vw); }
+.compact .bossbar label { font-size: 10px; letter-spacing: .08em; }
+.compact .bossbar .bar { height: 9px; margin-top: 2px; }
+.compact .bossbar .tanks { gap: 5px; margin-top: 3px; }
+.compact .bossbar .tanks i { width: 11px; height: 13px; border-radius: 3px; border-width: 1.5px; }
+.compact .charge { top: calc(8px + var(--safe-t)); width: min(300px, 38vw); }
+.compact .charge label, .compact .channel label { font-size: 10px; }
+.compact .bar { height: 9px; border-width: 1.5px; }
+
+.compact .bottom-right { right: calc(10px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); gap: 6px; }
+.compact .items { gap: 6px; }
+.compact .item { width: 46px; height: 46px; border-radius: 10px; }
+.compact .item i { width: 20px; height: 20px; }
+.compact .item b { font-size: 11px; right: 4px; bottom: 1px; }
+.compact .weapon { min-height: 42px; padding: 6px 12px; gap: 8px; border-radius: 10px; }
+.compact .weapon .wname { display: none; }
+.compact .weapon .ammo { font-size: 14px; min-width: 0; }
+.compact .weapon .dot { width: 14px; height: 14px; }
+
+.compact .dialogue { left: 50%; transform: translateX(-50%); --tx: -50%; bottom: calc(10px + var(--safe-b)); width: min(400px, calc(100vw - 330px)); min-width: 220px; gap: 8px; padding: 5px 10px 5px 5px; border-radius: 10px; }
+.compact .dialogue .face { flex-basis: 34px; height: 34px; border-radius: 7px; }
+.compact .dialogue .who { font-size: 11px; margin-bottom: 0; }
+.compact .dialogue .text { font-size: 12.5px; line-height: 1.25; }
+.compact .prompt { top: 60%; padding: 7px 15px; font-size: 13px; }
+.compact .toast { font-size: 13px; }
+.compact .weapon-picker button { min-height: 40px; padding: 6px 11px; font-size: 13px; }
+
+/* phones held upright: the top row is narrow, so panels stack below it */
+@media (orientation: portrait) {
+  .compact .objectives { max-width: calc(100vw - 184px); }
+  .compact .bossbar, .compact .charge { top: calc(86px + var(--safe-t)); width: calc(100vw - 40px); }
+  .compact .dialogue { width: calc(100vw - 20px); bottom: calc(122px + var(--safe-b)); }
+}

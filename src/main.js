@@ -71,6 +71,10 @@ for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, 
 const screens = new Screens(sfx);
 const input = new Input(renderer.domElement, document.getElementById('sticks'));
 document.body.classList.toggle('touch', input.touch); // thumb-sized buttons, no keyboard hints
+/** Phones get the compact HUD: one slim top row, a one-line objective, smaller panels. */
+const setCompact = () => document.body.classList.toggle('compact', input.touch && Math.min(innerWidth, innerHeight) <= 520);
+setCompact();
+addEventListener('resize', setCompact);
 const game = new Game(renderer, hud, input, sfx);
 let last = performance.now();
 
