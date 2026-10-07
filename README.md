@@ -1,5 +1,7 @@
 # Prism Paw
 
+**Play it:** https://yarith-dev.github.io/prism-paw/
+
 A top-down voxel horde shooter for the browser. Nova, a two-legged cat courier with a paint blaster, fights waves of grey robots to bring color back to the planet Kittara, and to get her grandpa back from the moon.
 
 - 5 worlds, 20 levels and 5 bosses, with two endings (find all 60 Color Seeds for the true one)
@@ -42,6 +44,8 @@ npm run build
 The finished game goes in `dist/`: a static site with one HTML, one JS and one CSS file. Asset paths are relative, so `dist/` runs from any folder or host (Vercel, Netlify, GitHub Pages, itch.io).
 
 ## Deploy
+
+**GitHub Pages (live):** `.github/workflows/pages.yml` builds the game and publishes it on every push to `main`.
 
 **Vercel:** import this repository on [vercel.com/new](https://vercel.com/new). Vercel detects Vite automatically (build command `npm run build`, output `dist`). Every push to `main` redeploys.
 
