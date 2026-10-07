@@ -1,0 +1,56 @@
+/**
+ * Level 4-4 "The Cracked Heart": The Echo boss beside the cracked Prism Heart (I).
+ * X marks where the Echo waits. Legend: see level13.js.
+ */
+export const level16 = {
+  id: '4-4',
+  title: 'The Cracked Heart',
+  place: 'The Static Wastes · The Prism Heart',
+  theme: 'wastes',
+  introComic: 'boss-4-4',
+  boss: 'echo',
+  bossTitle: 'The Echo is silent!',
+  bossWin: 'The Echo broke into a thousand flecks of color, and for the first time in three hundred years the Prism Heart was quiet.',
+  map: [
+    '################################',
+    '#~~~~......................~~~~#',
+    '#~~~...........*............~~~#',
+    '#~~..........................~~#',
+    '#~............................~#',
+    '#......#.......X........#......#',
+    '#..h...#................#...h..#',
+    '#..........B........B..........#',
+    '#..............................#',
+    '#.............III..............#',
+    '#...B.........III..........B...#',
+    '#.*...........III............*.#',
+    '#..............................#',
+    '#..........B........B..........#',
+    '#..............................#',
+    '#..h...#................#...h..#',
+    '#......#................#......#',
+    '#~............................~#',
+    '#~~............S.............~~#',
+    '#~~~........................~~~#',
+    '#~~~~......................~~~~#',
+    '################################',
+  ],
+  stages: [{ tasks: ['boss'] }],
+  lines: {
+    intro: [
+      ['Nova', 'The Prism Heart. It’s cracked right through…'],
+      ['Smudge', 'Bzzt… beep. (something is standing in front of it)'],
+    ],
+    bossIntro: [
+      ['Nova', 'Is that… me? Made of static?!'],
+      ['Echo', 'kzzt… Hey! Grey bucket! …kzzt… Put the color back!'],
+      ['Smudge', 'BZZT! (it copies whatever weapon you hold!)'],
+      ['Nova', 'Then let’s give it something it can’t handle.'],
+    ],
+    copy: [['Smudge', 'Beep! (switch weapons, and its attacks change too!)']],
+    phase_1: [['Nova', 'It’s splitting into copies!'], ['Smudge', 'Beep-boop! (fakes have no shadow!)']],
+    phase_2: [['Smudge', 'BZZT! (static rings! run for the gap!)']],
+    bossDown: [['Nova', 'There’s only one of me. Sorry.']],
+    lowHealth: [['Smudge', 'Beep! (H for sardines, B for bubbles!)']],
+  },
+};

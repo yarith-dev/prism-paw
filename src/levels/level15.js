@@ -1,0 +1,66 @@
+/**
+ * Level 4-3 "Chroma Mine": glass caverns near the Prism Heart. Crack the five Chroma
+ * geodes (O) for the rocket's green Chroma. Glass panes (G) wall them in: shoot through,
+ * or lob Seed Mortar shells over them. Legend: see level13.js.
+ */
+export const level15 = {
+  id: '4-3',
+  title: 'Chroma Mine',
+  place: 'The Static Wastes · Old Prism Mine',
+  theme: 'wastes',
+  beaconName: 'Chroma Pump',
+  map: [
+    '####################################',
+    '#S.....GGGG......#####.......GGGG.*#',
+    '#..N...G.OG......#####.......GO.G..#',
+    '#......GGGG..n...............GGGG..#',
+    '#..........................d.......#',
+    '#...B.......~~~~~~::~~~~~~.....B...#',
+    '####........~~........~~.......#####',
+    '#...........~~..GGGG..~~...........#',
+    '#....n......::..GO.G..::.....n..V..#',
+    '#...........~~..GGGG..~~...........#',
+    '#.....h.....~~~~~~~~~~~~...........#',
+    '#..R.............t..........R......#',
+    '#......V.....................h.....#',
+    '#GGGG.......####......####.....GGGG#',
+    '#O..G.......####..n...####.....G..O#',
+    '#GGGG..........................GGGG#',
+    '#.......d...........B.........n....#',
+    '#..*.......P.............#WWWWWWWWW#',
+    '#........................#.........#',
+    '#....L.........n.........#....E....#',
+    '#..............*.........#.........#',
+    '####################################',
+  ],
+  stages: [{ tasks: ['geodes', 'vats'] }],
+  vatPattern: ['drab', 'static', 'drab', 'stencil', 'static', 'mopper'],
+  defendPool: ['drab', 'drab', 'drab', 'static', 'static', 'stencil', 'fizz', 'mopper'],
+  beaconChargeTime: 32,
+  npcs: [
+    {
+      id: 'moss4', name: 'Professor Moss', model: 'moss',
+      lines: [
+        ['Professor Moss', 'Young courier! I followed the murals all the way here. This is the mine where the Bleach began!'],
+        ['Professor Moss', 'Green Chroma still sleeps in these geodes. Crack five and your rocket will have all the fuel it needs.'],
+        ['Professor Moss', 'Glass panes wall most of them in. Shoot through the glass, or lob seeds right over it. Take these, for luck.'],
+      ],
+      reward: { items: { bomb: 2 }, sparks: 30 }, rewardText: '+2 Paint Bombs, +30 Sparks',
+      after: [['Professor Moss', 'Every geode you crack, the Greyscale come running. Mind your back.']],
+    },
+  ],
+  lines: {
+    intro: [
+      ['Nova', 'An old Prism mine. Grandpa would love this. Grandpa would also tell me to be careful.'],
+      ['Smudge', 'Beep. (it points at a green glow behind the glass)'],
+    ],
+    geodes_1: [['Nova', 'Green Chroma! Pure, bright green. One down, four to go.']],
+    geodes_3: [['Smudge', 'Beep-beep! (two more geodes!)']],
+    geodes_5: [['Nova', 'That’s all five. The rocket’s getting a full tank.']],
+    vats_1: [['Nova', 'One Vat down!']],
+    stageClear: [['Nova', 'Geodes cracked, Vats popped. The Chroma Pump is open, southeast!']],
+    beaconStart: [['Nova', 'Pump that green!'], ['Smudge', 'BEEP! (robots in the tunnels!)']],
+    lowHealth: [['Smudge', 'Beep! (H for sardines, B for bubbles!)']],
+    beaconDone: [['Nova', 'The whole mine is glowing green.']],
+  },
+};

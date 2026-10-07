@@ -1,0 +1,56 @@
+/**
+ * Level 5-3 "The Far Side": out on Pale's surface in low gravity (Nova slides, vents throw
+ * her much further). Aim three color mirrors (k) at Kittara to send the stolen color home.
+ * Legend: see level17.js.
+ */
+export const level19 = {
+  id: '5-3',
+  title: 'The Far Side',
+  place: 'Pale · The Far Side',
+  theme: 'moon',
+  lowGravity: true,
+  beaconName: 'Moon Beacon',
+  map: [
+    '####################################',
+    '#S......##........~~~~........#..*.#',
+    '#.......##...d...M~~~~M.......#....#',
+    '#...H.............~~~~...........k.#',
+    '#..........P......................f#',
+    '#....~~~~...............B..........#',
+    '#....~~~~M........k.....~~~~~......#',
+    '#....~~~~...............~~~~~...V..#',
+    '#..d.......#####........M~~~~M.....#',
+    '#..........#####..m.....~~~~~......#',
+    '#....a.................P...........#',
+    '#......B............a..............#',
+    '#..V.....~~~~~.............#####...#',
+    '#.......M~~~~~M............#####...#',
+    '#........~~~~~.......d.............#',
+    '#...k...............B.......*......#',
+    '#.........P........~~~~~...........#',
+    '#.....f............~~~~~...#WWWWWWW#',
+    '#..........B.......~~~~~...#.......#',
+    '#..*...............M~~~~...#...E...#',
+    '#....h.......d.............#.......#',
+    '####################################',
+  ],
+  stages: [{ tasks: ['mirrors', 'vats'] }],
+  vatPattern: ['drab', 'archivist', 'fizz', 'drab', 'stencil', 'mopper'],
+  defendPool: ['drab', 'drab', 'drab', 'archivist', 'fizz', 'fizz', 'stencil', 'mopper'],
+  beaconChargeTime: 30,
+  lines: {
+    intro: [
+      ['Nova', 'Whoa, whoa, WHOA. Low gravity. Everything’s slippery!'],
+      ['Smudge', 'Beep! (it does a happy little float)'],
+      ['Nova', 'See those big mirrors? If we aim them home, the color goes back to Kittara.'],
+    ],
+    stolen: [['Nova', 'Not on the moon, buddy!']],
+    mirrors_1: [['Nova', 'Look at that beam go! Straight home to Kittara.']],
+    mirrors_3: [['Smudge', 'Beep-beep-beep! (all three mirrors!)']],
+    vats_1: [['Nova', 'One Vat down!']],
+    stageClear: [['Nova', 'Mirrors aimed, Vats popped. The Moon Beacon is open, southeast!']],
+    beaconStart: [['Nova', 'Last beacon before the Curator. Make it count!'], ['Smudge', 'BEEP! (here they come!)']],
+    lowHealth: [['Smudge', 'Beep! (H for sardines, B for bubbles!)']],
+    beaconDone: [['Nova', 'Even the moon looks better in color.']],
+  },
+};

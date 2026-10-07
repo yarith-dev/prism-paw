@@ -1,0 +1,61 @@
+/**
+ * Level 3-4 "The Outer Moorings": the Net Trawler boss over three moored ships.
+ * X marks where it waits; `trawlerSpots` are the tile coords it hovers at (over open sky).
+ * Gangplanks and vents link the ships. Legend: see level9.js.
+ */
+export const level12 = {
+  id: '3-4',
+  title: 'The Outer Moorings',
+  place: 'Coral Sky Docks · Outer Moorings',
+  theme: 'docks',
+  introComic: 'boss-3-4',
+  boss: 'trawler',
+  bossTitle: 'Net Trawler grounded!',
+  bossWin: 'The Net Trawler went down in a blaze of paint, and its nets of stolen color burst over the harbor.',
+  map: [
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~...*~~~~~~~~~~~~~~~~~~',
+    '~~~~~~...~~~~~~~~..P...~~~~~~~~...~~~~~~',
+    '~~~~~.....~~~~~..........~~~~~.....~~~~~',
+    '~~~.*....B..~~~.....X....~~~..B......~~~',
+    '~~~.........~~~..##......~~~.........~~~',
+    '~~~....P....:::..#.......:::....P....~~~',
+    '~~~.........~~~..........~~~.........~~~',
+    '~~~.........~~~..........~~~.........~~~',
+    '~~~.##......~~~..........~~~....h....~~~',
+    '~~~.##.....M~~~MB.h.....M~~~M........~~~',
+    '~~~....h....~~~........B.~~~......##.~~~',
+    '~~~.........~~~..........~~~......##.~~~',
+    '~~~.......B.~~~..........~~~.........~~~',
+    '~~~.........:::.......#..:::.........~~~',
+    '~~~....P....~~~......##..~~~....P....~~~',
+    '~~~.........~~~..........~~~........*~~~',
+    '~~~..B......~~~....S.....~~~.......B.~~~',
+    '~~~~~.....~~~~~..........~~~~~.....~~~~~',
+    '~~~~~~...~~~~~~~~...P..~~~~~~~~...~~~~~~',
+    '~~~~~~~~~~~~~~~~~~....~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+  ],
+  trawlerSpots: [[1, 8], [1, 17], [13, 3], [26, 3], [38, 8], [38, 17], [13, 22], [26, 22], [13, 12], [26, 12]],
+  stages: [{ tasks: ['boss'] }],
+  lines: {
+    intro: [
+      ['Nova', 'Three ships, and one really big shadow. Smudge, look up.'],
+      ['Smudge', 'Beep… (it is VERY big)'],
+    ],
+    bossIntro: [
+      ['Nova', 'An airship Harvester! It’s fishing for color!'],
+      ['Smudge', 'Beep-boop! (the hull is armored. shoot the three propellers!)'],
+      ['Nova', 'And if it flies over to another ship, we follow it.'],
+    ],
+    snared: [['Smudge', 'BEEP! (a net! keep shooting, it slips off in a second!)']],
+    engine_1: [['Nova', 'One propeller down! Now it’s dropping flat robots on us!']],
+    engine_2: [['Smudge', 'Beep-beep! (last propeller! stay out of the red lanes!)']],
+    bossDown: [['Nova', 'Sky fishing season is OVER.']],
+    lowHealth: [['Smudge', 'Beep! (H for sardines, B for bubbles!)']],
+  },
+};

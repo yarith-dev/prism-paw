@@ -1,0 +1,70 @@
+/**
+ * Level 3-2 "Whale Watch": sky lanes cut the pier into four decks, and greyed
+ * sky-whales swim along them. Paint them back to color. Legend: see level9.js.
+ * `whales` lists each whale's lane as tile coords [x0, z0, x1, z1].
+ */
+export const level10 = {
+  id: '3-2',
+  title: 'Whale Watch',
+  place: 'Coral Sky Docks · Whale Watch Pier',
+  theme: 'docks',
+  beaconName: 'Lighthouse Beacon',
+  map: [
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~S.....####......~~~......####...*.~',
+    '~......####......~~~..t...####.....~',
+    '~..N............M~~~M..........V...~',
+    '~........B.......~~~......B........~',
+    '~....d.......t...~~~....f..........~',
+    '~##.....P........~~~..........P....~',
+    '~##.............M~~~M.....d........~',
+    '~.....h..........~~~...........h...~',
+    '~...M.......M....~~~...M.......M...~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~...M.......M....~~~...M.......M...~',
+    '~................~~~...............~',
+    '~..V....t.......M~~~M.....t........~',
+    '~........B.......~~~......B...m....~',
+    '~##......f.......~~~......WWWWWWWWW~',
+    '~##.....P.......M~~~M.....W........~',
+    '~....m...........~~~......W...E....~',
+    '~*........d......~~~..d...W........~',
+    '~.....L.....*....~~~......W........~',
+    '~................~~~......W.....L..~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+  ],
+  whales: [[3, 11, 32, 11], [18, 2, 18, 7], [18, 15, 18, 21]],
+  stages: [{ tasks: ['whales', 'vats'] }],
+  vatPattern: ['stencil', 'fizz', 'drab', 'drab', 'stencil', 'fizz'],
+  defendPool: ['drab', 'drab', 'drab', 'stencil', 'stencil', 'fizz', 'fizz', 'mopper'],
+  beaconChargeTime: 30,
+  npcs: [
+    {
+      id: 'juno', name: 'Juno', model: 'juno',
+      lines: [
+        ['Juno', 'Shh, you’ll scare them! …Oh. They can’t get scared anymore. They’re grey.'],
+        ['Juno', 'Sky-whales soak up color like sponges. Spray them with paint and they fill right back up, nose first, all the way to the tail!'],
+        ['Juno', 'The robots keep them grey with two Vats on the pier. Here, my lunch money. Sardines are on me.'],
+      ],
+      reward: { items: { sardine: 2 }, sparks: 20 }, rewardText: '+2 Sardine Tins, +20 Sparks',
+      after: [['Juno', 'Keep painting until a whale is colored nose to tail. Use the vents to cross the sky lanes!']],
+    },
+  ],
+  lines: {
+    intro: [
+      ['Nova', 'Something big is swimming under the pier…'],
+      ['Smudge', 'Beep… (whale song. very sad whale song)'],
+    ],
+    stencil: [['Smudge', 'BEEP! (flat one! red line means charge!)']],
+    whales_1: [['Nova', 'Look at it go! One whale painted!']],
+    whales_2: [['Smudge', 'Beep-beep! (one more whale!)']],
+    whales_3: [['Nova', 'All three whales are singing!']],
+    vats_1: [['Nova', 'One Vat down!']],
+    stageClear: [['Nova', 'Whales painted, Vats popped. The Lighthouse Beacon is open, southeast!']],
+    beaconStart: [['Nova', 'Light the lighthouse!'], ['Smudge', 'BEEP! (they are coming over the vents!)']],
+    lowHealth: [['Smudge', 'Beep! (H for sardines, B for bubbles!)']],
+    beaconDone: [['Nova', 'Listen to them sing…']],
+  },
+};
