@@ -1,5 +1,7 @@
 /** Small helpers shared by the game and the bosses. */
 export const PAINT = ['#ff4f6d', '#ffd23f', '#7ef0c8', '#62a8ff', '#ff8fb1', '#c6a8ff', '#ff9a3d'];
+/** The original rainbow, kept for things that should not follow the wardrobe's paint palette. */
+export const RAINBOW = [...PAINT];
 export const GREYS = ['#8d939c', '#b9bec6', '#4f545d'];
 export const PLAYER_R = 0.9;
 

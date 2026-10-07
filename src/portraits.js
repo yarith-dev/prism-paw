@@ -105,6 +105,16 @@ export function renderNova(id, meshes, framing = 'full', yaw = -0.35) {
   return cache[id];
 }
 
+/** Render Smudge from a one-off mesh (wardrobe thumbnails); disposed afterwards, cached by `id`. */
+export function renderSmudge(id, meshed) {
+  if (cache[id]) return cache[id];
+  const group = instance(meshed);
+  cache[id] = shoot(group, 'full', -0.5);
+  group.traverse((o) => { if (o.material?.isMeshLambertMaterial) o.material.dispose(); });
+  meshed.solid?.dispose(); meshed.glow?.dispose();
+  return cache[id];
+}
+
 /** @param {'head'|'full'} framing */
 export function portrait(key, framing = 'head') {
   const id = `${key}:${framing}`;

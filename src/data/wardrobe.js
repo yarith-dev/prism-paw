@@ -225,11 +225,136 @@ export const WARDROBE = {
       { id: 'bell', name: 'Bell collar', unlock: '3-2', hint: 'Clear Whale Watch' },
     ],
   },
+  hair: {
+    label: 'Hair',
+    group: 'Head',
+    items: true,
+    options: [
+      { id: 'none', name: 'None' },
+      { id: 'cowlick', name: 'Cowlick' },
+      { id: 'fringe', name: 'Fringe' },
+      { id: 'bun', name: 'Bun' },
+      { id: 'pigtails', name: 'Pigtails' },
+      { id: 'spiky', name: 'Spiky', unlock: '1-2', hint: 'Clear the Tram Yards' },
+      { id: 'mohawk', name: 'Mohawk', unlock: '3-3', hint: 'Clear the Squall Deck' },
+    ],
+  },
+  face: {
+    label: 'Face',
+    group: 'Head',
+    items: true,
+    options: [
+      { id: 'none', name: 'None' },
+      { id: 'blush', name: 'Blush' },
+      { id: 'freckles', name: 'Freckles' },
+      { id: 'whiskers', name: 'Whiskers' },
+      { id: 'bandage', name: 'Bandage' },
+      { id: 'star', name: 'Star sticker', unlock: '2-1', hint: 'Clear the Spore Trail' },
+      { id: 'warpaint', name: 'War paint', unlock: '4-4', hint: 'Beat the Echo' },
+    ],
+  },
+  bottoms: {
+    label: 'Bottoms',
+    group: 'Outfit',
+    items: true,
+    options: [
+      { id: 'none', name: 'None' },
+      { id: 'shorts', name: 'Shorts' },
+      { id: 'pants', name: 'Pants' },
+      { id: 'skirt', name: 'Skirt' },
+    ],
+  },
+  bottomsColor: {
+    label: 'Bottoms color',
+    group: 'Outfit',
+    options: [
+      swatch('denim', 'Denim', { bottoms: '#3f5fa8' }),
+      swatch('ink', 'Ink', { bottoms: '#2d2a3a' }),
+      swatch('khaki', 'Khaki', { bottoms: '#c9a46e' }),
+      swatch('cherry', 'Cherry', { bottoms: '#c4304f' }),
+      swatch('forest', 'Forest', { bottoms: '#2a6b33' }),
+      swatch('lilac', 'Lilac', { bottoms: '#9a7ad6' }),
+      swatch('cloud', 'Cloud', { bottoms: '#e6ecf8' }),
+    ],
+  },
+  gloves: {
+    label: 'Gloves',
+    group: 'Outfit',
+    items: true,
+    options: [
+      { id: 'none', name: 'Bare paws' },
+      { id: 'mittens', name: 'Mittens' },
+      { id: 'fingerless', name: 'Fingerless' },
+      { id: 'boxing', name: 'Boxing gloves', unlock: '1-4', hint: 'Beat the Street Sweeper' },
+      { id: 'gauntlets', name: 'Gauntlets', unlock: '5-1', hint: 'Clear the Moon Gate' },
+    ],
+  },
+  smudgePaint: {
+    label: 'Paint',
+    group: 'Smudge',
+    target: 'smudge',
+    options: [
+      swatch('mint', 'Mint & pink', { body: '#7ef0c8', light: '#ff8fb1', dark: '#4b34b3', eye: '#62f4ff' }),
+      swatch('sunny', 'Sunny', { body: '#ffd23f', light: '#ff9a3d', dark: '#8a5a3b', eye: '#fff3a1' }),
+      swatch('sky', 'Sky', { body: '#62a8ff', light: '#ffffff', dark: '#1f2f70', eye: '#a8fff4' }),
+      swatch('grape', 'Grape', { body: '#b48cff', light: '#ffd23f', dark: '#3a2a6b', eye: '#ffb3f5' }),
+      swatch('cherry', 'Cherry', { body: '#ff4f6d', light: '#ffe0e6', dark: '#6b1f35', eye: '#fff3a1' }),
+      swatch('midnight', 'Midnight', { body: '#2d2a3a', light: '#62f4ff', dark: '#1c1a33', eye: '#ff6ae0' }),
+      swatch('chrome', 'Chrome', { body: '#c9ced6', light: '#ffffff', dark: '#4f545d', eye: '#9dff6e' }),
+    ],
+  },
+  smudgeTop: {
+    label: 'Topper',
+    group: 'Smudge',
+    target: 'smudge',
+    items: true,
+    options: [
+      { id: 'classic', name: 'Antenna' },
+      { id: 'heart', name: 'Heart antenna' },
+      { id: 'double', name: 'Double antenna' },
+      { id: 'flower', name: 'Flower' },
+      { id: 'bow', name: 'Bow' },
+      { id: 'propeller', name: 'Propeller cap', unlock: '3-2', hint: 'Clear Whale Watch' },
+      { id: 'tophat', name: 'Top hat', unlock: '2-4', hint: 'Beat the Weed Whacker' },
+      { id: 'party', name: 'Party hat', unlock: '5-4', hint: 'Beat the Curator' },
+      { id: 'crown', name: 'Tiny crown', unlock: 'seeds', hint: 'Find every Color Seed' },
+    ],
+  },
+  trail: {
+    label: 'Trail',
+    group: 'Effects',
+    items: true,
+    chips: true,
+    options: [
+      { id: 'none', name: 'None', colors: {} },
+      { id: 'sparkles', name: 'Sparkles', colors: { a: '#ffffff', b: '#fff3a1' } },
+      { id: 'hearts', name: 'Hearts', colors: { a: '#ff8fb1', b: '#ff4f6d' } },
+      { id: 'bubbles', name: 'Bubbles', colors: { a: '#a8fff4', b: '#62a8ff' } },
+      { id: 'paint', name: 'Paint steps', colors: { a: '#ff4f6d', b: '#ffd23f', c: '#7ef0c8', d: '#62a8ff' } },
+      { id: 'embers', name: 'Embers', colors: { a: '#ffd23f', b: '#ff7a59', c: '#ff4f6d' }, unlock: '4-1', hint: 'Clear the Glass Dunes' },
+      { id: 'stardust', name: 'Stardust', colors: { a: '#c9a7ff', b: '#ffffff', c: '#62f4ff' }, unlock: '5-3', hint: 'Clear the Far Side' },
+    ],
+  },
+  palette: {
+    label: 'Paint colors',
+    group: 'Effects',
+    target: 'fx',
+    options: [
+      swatch('rainbow', 'Rainbow', { a: '#ff4f6d', b: '#ffd23f', c: '#7ef0c8', d: '#62a8ff', e: '#ff8fb1', f: '#c6a8ff', g: '#ff9a3d' }),
+      swatch('sunset', 'Sunset', { a: '#ff4f6d', b: '#ff7a59', c: '#ff9a3d', d: '#ffd23f', e: '#ff8fb1' }),
+      swatch('ocean', 'Ocean', { a: '#62a8ff', b: '#3de0c8', c: '#7ef0c8', d: '#2f4aa8', e: '#a8fff4' }),
+      swatch('candy', 'Candy', { a: '#ff8fb1', b: '#ffc2e0', c: '#c6a8ff', d: '#a8fff4', e: '#fff3a1' }),
+      swatch('forest', 'Forest', { a: '#8cdc7a', b: '#3f9b4a', c: '#ffd23f', d: '#c08a57', e: '#b8ff6a' }),
+      swatch('neon', 'Neon', { a: '#ff4fd8', b: '#62f4ff', c: '#9dff6e', d: '#fff07a' }),
+      swatch('royal', 'Royal', { a: '#ffd23f', b: '#6a4ce4', c: '#ffffff', d: '#c4304f' }),
+    ],
+  },
 };
 for (const k of ['lens', 'glow']) for (const o of WARDROBE[k].options) Object.values(o.colors).forEach((c) => GLOW.add(c));
+for (const o of WARDROBE.smudgePaint.options) GLOW.add(o.colors.eye); // Smudge's eye glows
 
 export const SLOTS = Object.keys(WARDROBE);
-export const GROUPS = ['Body', 'Outfit', 'Head', 'Blaster'];
+export const GROUPS = ['Body', 'Outfit', 'Head', 'Blaster', 'Smudge', 'Effects'];
 export const DEFAULT_LOOK = Object.fromEntries(SLOTS.map((s) => [s, WARDROBE[s].options[0].id]));
 
 /** @param save the save module (for cleared levels and seed count) */
@@ -249,13 +374,25 @@ export function storeLook(look) {
 
 /** Turn a stored look into what the model builder needs: merged colours plus worn accessories. */
 export function resolveLook(look, save) {
-  const colors = {};
-  const out = { colors };
+  const colors = {}, smudgeColors = {};
+  const out = { colors, smudgeColors };
   for (const slot of SLOTS) {
-    const opts = WARDROBE[slot].options;
-    const opt = opts.find((o) => o.id === look[slot]) || opts[0];
-    if (WARDROBE[slot].items) out[slot] = isUnlocked(opt, save) ? opt.id : opts[0].id;
+    const def = WARDROBE[slot], opts = def.options;
+    let opt = opts.find((o) => o.id === look[slot]) || opts[0];
+    if (!isUnlocked(opt, save)) opt = opts[0];
+    if (def.items) out[slot] = opt.id;
+    else if (def.target === 'smudge') Object.assign(smudgeColors, opt.colors);
+    else if (def.target === 'fx') out[slot] = Object.values(opt.colors);
     else Object.assign(colors, opt.colors);
   }
   return out;
+}
+
+/** Saved outfits: three slots of whole looks, stored next to the current look. */
+const OUTFITS = 'prism-paw-outfits-v1';
+export function loadOutfits() {
+  try { const a = JSON.parse(localStorage.getItem(OUTFITS) || '[]'); return [0, 1, 2].map((i) => a[i] || null); } catch { return [null, null, null]; }
+}
+export function storeOutfits(list) {
+  try { localStorage.setItem(OUTFITS, JSON.stringify(list)); } catch { /* private mode */ }
 }

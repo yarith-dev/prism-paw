@@ -262,7 +262,7 @@ The full campaign (5 worlds, 20 levels, 5 bosses, both endings) is now in the bu
 - **Boss cards:** before each boss fight, a staged scene with the boss's name stamped over it, followed by one piece of advice. They can be replayed from **Story so far**.
 
 ### Wardrobe (character customization)
-A wardrobe with a mirror stands in Grandpa's workshop. **Change your look** opens a dressing screen with a spinning 3D preview of Nova. Options are grouped into four tabs, and every shape option shows a 3D thumbnail of Nova wearing it.
+A wardrobe with a mirror stands in Grandpa's workshop. **Change your look** opens a dressing screen with a spinning 3D preview (of Smudge on the Smudge tab). Options are grouped into six tabs; shape options show a 3D thumbnail of Nova or Smudge wearing them.
 
 | Group | Slot | Options (unlock) |
 |---|---|---|
@@ -273,16 +273,26 @@ A wardrobe with a mirror stands in Grandpa's workshop. **Change your look** open
 | | Eyes | 6 colors; shape: Bright, Sparkly, Happy, Sleepy, Fierce |
 | Outfit | Top | Courier jacket, Hoodie, Vest & tee, Turtleneck, Prism armor (3-3) |
 | | Outfit color / Trim | 9 colors / 6 colors |
+| | Bottoms (+ color) | None, Shorts, Pants, Skirt; 7 colors |
+| | Gloves | Bare paws, Mittens, Fingerless, Boxing gloves (1-4), Gauntlets (5-1) |
 | | Back | Courier bag, Nothing, Backpack, Hero cape (1-3), Jetpack (3-1), Prism wings (5-2) |
 | | Shoes | Boots, Sneakers, Bare paws, Rain boots (2-1) |
 | | Neck | None, Scarf, Bandana (1-2), Bow tie (2-2), Bell collar (3-2) |
 | Head | Hat | None, Courier cap, Beanie (1-4), Flower crown (2-4), Captain's hat (3-4), Headphones (4-4), Party hat (5-4), Prism crown (all seeds) |
+| | Hair | None, Cowlick, Fringe, Bun, Pigtails, Spiky (1-2), Mohawk (3-3) |
+| | Face | None, Blush, Freckles, Whiskers, Bandage, Star sticker (2-1), War paint (4-4) |
 | | Eyewear | Goggles, Nothing, Round glasses, Shades, Visor (4-1), Eyepatch (1-1) |
-| | Lens color | 6 glowing colors (goggles, visor, armor gem, jetpack flame, wings) |
+| | Lens color | 6 glowing colors (goggles, visor, armor gem, gauntlets, jetpack flame, wings) |
 | Blaster | Style | Prism Blaster, Ray gun (1-1), Paint soaker (2-3), Crystal blaster (4-4), Paw cannon (all seeds) |
 | | Glow | 6 colors |
+| Smudge | Paint | Mint & pink, Sunny, Sky, Grape, Cherry, Midnight, Chrome |
+| | Topper | Antenna, Heart antenna, Double antenna, Flower, Bow, Propeller cap (3-2), Top hat (2-4), Party hat (5-4), Tiny crown (all seeds) |
+| Effects | Trail | None, Sparkles, Hearts, Bubbles, Paint steps (footprints on the ground), Embers (4-1), Stardust (5-3) |
+| | Paint colors | Rainbow, Sunset, Ocean, Candy, Forest, Neon, Royal: the colors of every paint splat and burst |
 
-Nearly every level unlocks something the first time it is cleared, and the results screen says what. The look shows everywhere Nova appears: in levels, dialogue portraits and the comic scenes. The Echo, being a copy of Nova, wears it too. "Surprise me" picks a random unlocked outfit. The look is stored apart from the save, so a new game keeps it; pieces that game hasn't unlocked yet fall back to the free default until it does.
+**Saved outfits:** three slots in the wardrobe. "Save…" then a slot stores the current look; tapping a slot wears it.
+
+Nearly every level unlocks something the first time it is cleared, and the results screen says what. The look shows everywhere Nova and Smudge appear: levels, dialogue portraits and the comic scenes. The Echo, being a copy of Nova, wears it too. "Surprise me" picks a random unlocked look. Looks and saved outfits are stored apart from the save, so a new game keeps them; pieces that game hasn't unlocked yet fall back to the free default until it does.
 
 ### Difficulty
 Robots scale per world to keep pace with the upgrades a typical player has bought (robot health and damage to Nova, plus Vat and beacon-wave pace):

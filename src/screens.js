@@ -1,9 +1,9 @@
-import { portrait, renderNova } from './portraits.js';
+import { portrait, renderNova, renderSmudge } from './portraits.js';
 import { Stage } from './stage.js';
 import { settings, TEXT_SPEEDS } from './settings.js';
 import { THEMES } from './music.js';
-import { WARDROBE, SLOTS, GROUPS, DEFAULT_LOOK, resolveLook } from './data/wardrobe.js';
-import { novaMeshes } from './models.js';
+import { WARDROBE, SLOTS, GROUPS, DEFAULT_LOOK, resolveLook, loadOutfits, storeOutfits } from './data/wardrobe.js';
+import { novaMeshes, smudgeMesh } from './models.js';
 import { drawMap, MAP_LEGEND } from './minimap.js';
 import { WEAPONS, UPGRADES, ITEMS, ITEM_ORDER } from './data/shop.js';
 import { WORLDS, COMICS, STORY_ORDER } from './data/story.js';
@@ -114,28 +114,34 @@ export class Screens {
     this.buttons($('.buttons', el), list);
   }
 
-  /** Nova's wardrobe: a turntable preview, group and slot tabs, swatches or 3D thumbnails. */
+  /** Nova's wardrobe: a turntable preview, group and slot tabs, swatches or 3D thumbnails, saved outfits. */
   wardrobe({ look, isUnlocked, onChange, onClose }) {
     look = { ...look };
-    let group = 'Body', tab = 'fur';
+    let group = 'Body', tab = 'fur', saving = false;
+    let outfits = loadOutfits();
     const el = this.mount('wardrobe', `
       <div class="wardrobe">
-        <div class="wr-preview"><canvas class="stage"></canvas><b>Nova</b></div>
+        <div class="wr-preview"><canvas class="stage"></canvas><b></b></div>
         <div class="wr-panel">
           <h2>Wardrobe</h2>
           <div class="wr-groups">${GROUPS.map((g) => `<button data-group="${g}">${g}</button>`).join('')}</div>
           <div class="wr-tabs"></div>
           <div class="wr-options"></div>
           <p class="wr-hint"></p>
+          <div class="wr-outfits"></div>
           <div class="buttons"></div>
         </div>
       </div>`);
     const stage = new Stage($('canvas.stage', el));
     stage.keepTime = true;
-    const PREVIEW = { set: 'workshop', shot: 'turntable', mood: 'warm', spin: true, cast: ['nova'] };
-    const restage = () => { stage.show(PREVIEW); stage.start(); };
+    const restage = () => {
+      const smudge = group === 'Smudge';
+      $('.wr-preview > b', el).textContent = smudge ? 'Smudge' : 'Nova';
+      stage.show({ set: 'workshop', shot: 'turntable', mood: 'warm', spin: true, cast: [smudge ? 'smudge' : 'nova'] });
+      stage.start();
+    };
     // how each slot's thumbnails frame Nova: [framing, yaw]
-    const VIEW = { pattern: ['head', 0.5], tail: ['lower', 2.1], back: ['full', 2.5], blaster: ['lower', -1.25], top: ['full', -0.35], neck: ['full', -0.35], shoes: ['full', -0.35], ears: ['face', -0.5], eyeShape: ['face', 0], eyewear: ['face', -0.3], hat: ['face', -0.4] };
+    const VIEW = { pattern: ['head', 0.5], tail: ['lower', 2.1], back: ['full', 2.5], blaster: ['lower', -1.25], top: ['full', -0.35], neck: ['full', -0.35], shoes: ['lower', -0.35], bottoms: ['lower', -0.35], gloves: ['lower', -0.9], ears: ['face', -0.5], eyeShape: ['face', 0], eyewear: ['face', -0.3], hat: ['face', -0.4], hair: ['face', -0.7], face: ['face', 0] };
     let thumbJob = 0;
     const thumbs = () => {
       const job = ++thumbJob, slot = tab;
@@ -145,8 +151,8 @@ export class Screens {
         if (job !== thumbJob || !imgs.length || !el.isConnected) return;
         const img = imgs.shift();
         const trial = resolveLook({ ...look, [slot]: img.dataset.id }, save);
-        const id = `wr:${JSON.stringify(trial)}:${framing}`;
-        img.src = renderNova(id, novaMeshes(trial), framing, yaw);
+        const key = JSON.stringify(trial);
+        img.src = WARDROBE[slot].target === 'smudge' ? renderSmudge(`wrs:${key}`, smudgeMesh(trial)) : renderNova(`wr:${key}:${framing}:${yaw}`, novaMeshes(trial), framing, yaw);
         setTimeout(step, 0);
       };
       step();
@@ -154,7 +160,13 @@ export class Screens {
     const apply = () => { onChange({ ...look }); restage(); draw(); };
     const swatchBg = (o) => {
       const c = Object.values(o.colors);
-      return c.length > 1 ? `linear-gradient(135deg, ${c[0]} 55%, ${c[1]} 55%)` : c[0];
+      if (c.length === 1) return c[0];
+      if (c.length === 2) return `linear-gradient(135deg, ${c[0]} 55%, ${c[1]} 55%)`;
+      return `linear-gradient(135deg, ${c.map((x, i) => `${x} ${(i * 100) / c.length}% ${((i + 1) * 100) / c.length}%`).join(', ')})`;
+    };
+    const chips = (o) => Object.values(o.colors).map((c) => `<i style="background:${c}"></i>`).join('') || '<i class="none"></i>';
+    const drawOutfits = () => {
+      $('.wr-outfits', el).innerHTML = `<span>Outfits</span>${outfits.map((o, i) => `<button data-slot="${i}" class="${saving ? 'saving' : ''}">${saving ? `Save to ${i + 1}` : o ? `Wear ${i + 1}` : `Empty ${i + 1}`}</button>`).join('')}<button class="save ${saving ? 'on' : ''}">${saving ? 'Cancel' : 'Save…'}</button>`;
     };
     const draw = () => {
       el.querySelectorAll('.wr-groups button').forEach((b) => b.classList.toggle('on', b.dataset.group === group));
@@ -166,21 +178,24 @@ export class Screens {
       box.innerHTML = slot.options.map((o) => {
         const open = isUnlocked(o);
         const on = look[tab] === o.id;
-        return slot.items
-          ? `<button class="${on ? 'on' : ''}" data-id="${o.id}" ${open ? '' : 'disabled'}>${open ? `<img alt="" data-id="${o.id}">` : '<i class="lock"></i>'}<span>${open ? esc(o.name) : 'Locked'}</span><small>${open ? '' : esc(o.hint)}</small></button>`
-          : `<button class="${on ? 'on' : ''}" data-id="${o.id}" title="${esc(o.name)}" style="background:${swatchBg(o)}"></button>`;
+        if (!slot.items) return `<button class="${on ? 'on' : ''}" data-id="${o.id}" title="${esc(o.name)}" style="background:${swatchBg(o)}" ${open ? '' : 'disabled'}></button>`;
+        const pic = !open ? '<i class="lock"></i>' : slot.chips ? `<span class="chips">${chips(o)}</span>` : `<img alt="" data-id="${o.id}">`;
+        return `<button class="${on ? 'on' : ''}" data-id="${o.id}" ${open ? '' : 'disabled'}>${pic}<span>${open ? esc(o.name) : 'Locked'}</span><small>${open ? '' : esc(o.hint)}</small></button>`;
       }).join('');
       const cur = slot.options.find((o) => o.id === look[tab]) || slot.options[0];
-      $('.wr-hint', el).textContent = `${slot.label}: ${cur.name}`;
-      if (slot.items) thumbs();
+      $('.wr-hint', el).textContent = `${slot.label}: ${cur.name}${slot.chips ? ' (shows while you run)' : tab === 'palette' ? ' (the color of every paint splat)' : ''}`;
+      drawOutfits();
+      if (slot.items && !slot.chips) thumbs();
     };
     el.querySelector('.wr-groups').addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;
       this.sfx.pickup();
+      const wasSmudge = group === 'Smudge';
       group = b.dataset.group;
       tab = SLOTS.find((s) => WARDROBE[s].group === group);
       draw();
+      if (wasSmudge !== (group === 'Smudge')) restage();
     });
     el.querySelector('.wr-tabs').addEventListener('click', (e) => {
       const b = e.target.closest('button');
@@ -195,6 +210,15 @@ export class Screens {
       this.sfx.pickup();
       look[tab] = b.dataset.id;
       apply();
+    });
+    $('.wr-outfits', el).addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      this.sfx.pickup();
+      if (b.classList.contains('save')) { saving = !saving; drawOutfits(); return; }
+      const i = Number(b.dataset.slot);
+      if (saving) { outfits[i] = { ...look }; storeOutfits(outfits); saving = false; drawOutfits(); return; }
+      if (outfits[i]) { look = { ...DEFAULT_LOOK, ...outfits[i] }; apply(); }
     });
     const done = () => { thumbJob++; stage.dispose(); this.close(); onClose(); };
     this.buttons($('.buttons', el), [

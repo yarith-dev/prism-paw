@@ -40,8 +40,9 @@ const FACES = [
  * Mesh a voxel model into geometry with only exposed faces and vertex colors.
  * Voxel (x, y, z) occupies [x-.5, x+.5] × [y, y+1] × [z-.5, z+.5] before scaling,
  * so a model's feet at y=0 stand on the ground. `pivot` is subtracted first.
+ * `glowSet` picks the unlit colours (default: the shared GLOW list).
  */
-export function meshModel(mdl, scale, pivot = [0, 0, 0]) {
+export function meshModel(mdl, scale, pivot = [0, 0, 0], glowSet = GLOW) {
   // numeric voxel keys: string keys cost six allocations per voxel in the neighbour test
   const B = 1024, key = (x, y, z) => ((x + B) * 2048 + (y + B)) * 2048 + (z + B);
   const n = mdl.m.size;
@@ -64,7 +65,7 @@ export function meshModel(mdl, scale, pivot = [0, 0, 0]) {
       if (!filled.has(key(X[i] + d[0], Y[i] + d[1], Z[i] + d[2]))) bits |= 1 << f;
     }
     mask[i] = bits;
-    glow[i] = GLOW.has(H[i]) ? 1 : 0;
+    glow[i] = glowSet.has(H[i]) ? 1 : 0;
     faces[glow[i]] += POPCOUNT[bits];
   }
   // pass 2: write straight into typed arrays (6 vertices per face)

@@ -158,7 +158,7 @@ button { font: inherit; color: inherit; }
 .wr-preview > b { position: absolute; left: 14px; top: 10px; font-family: 'Silkscreen', monospace; color: var(--yellow); text-shadow: 0 2px 0 rgba(0,0,0,.4); }
 .wr-panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; background: var(--panel-solid); border: 2px solid rgba(98,244,255,.45); border-radius: 18px; padding: 16px; }
 .wr-panel h2 { margin: 0; }
-.wr-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.wr-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 #overlay .wr-groups button:not(.node) { padding: 8px 6px; font-size: 14px; }
 #overlay .wr-groups button.on:not(.node) { background: linear-gradient(180deg, #ffb36b, var(--orange)); color: #2a1406; }
 .wr-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -439,3 +439,13 @@ button { font: inherit; color: inherit; }
   .compact .bossbar, .compact .charge { top: calc(86px + var(--safe-t)); width: calc(100vw - 40px); }
   .compact .dialogue { width: calc(100vw - 20px); bottom: calc(122px + var(--safe-b)); }
 }
+
+/* wardrobe extras: trail chips and saved outfits */
+.wr-options.items .chips { width: 100%; aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,.07); display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 5px; padding: 10px; }
+.wr-options.items .chips i { width: 15px; height: 15px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.wr-options.items .chips i.none { background: transparent; border: 2px dashed rgba(255,255,255,.35); box-shadow: none; }
+.wr-outfits { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.wr-outfits > span { font-family: 'Silkscreen', monospace; font-size: 11px; color: var(--muted); margin-right: 4px; }
+#overlay .wr-outfits button:not(.node) { padding: 6px 10px; font-size: 13px; }
+#overlay .wr-outfits button.saving:not(.node) { border-color: var(--yellow); color: var(--yellow); }
+#overlay .wr-outfits button.save.on:not(.node) { background: var(--yellow); color: #2a1406; }

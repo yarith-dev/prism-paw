@@ -9,7 +9,7 @@ const BASE_C = {
   fur: '#f28c28', furDark: '#c45d16', white: '#fff4e6', pink: '#ff8fb1',
   jacket: '#6a4ce4', jacketDark: '#4b34b3', trim: '#ffd23f', boot: '#28244c',
   eye: '#1c1a33', iris: '#3be08f', goggle: '#3a3f5c', strap: '#8a5a3b',
-  gun: '#454c63', gunDark: '#2a2f40',
+  gun: '#454c63', gunDark: '#2a2f40', bottoms: '#3f5fa8',
   lens: '#62f4ff', glowPink: '#ff4fd8', barrel: '#7dfcff',
 };
 const C = BASE_C;
@@ -22,7 +22,7 @@ GLOW.add(C.lens).add(C.glowPink).add(C.barrel).add(G.eye);
 const vhash = (x, y, z) => { let h = (x * 73856093) ^ (y * 19349663) ^ (z * 83492791); h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 /** Fill in wardrobe defaults (shape slots) so older stored looks still build. */
-const NOVA_DEFAULTS = { pattern: 'tabby', ears: 'pointy', tail: 'curly', eyeShape: 'normal', top: 'jacket', back: 'bag', shoes: 'boots', eyewear: 'goggles', blaster: 'prism', hat: 'none', neck: 'none' };
+const NOVA_DEFAULTS = { hair: 'none', face: 'none', gloves: 'none', bottoms: 'none', pattern: 'tabby', ears: 'pointy', tail: 'curly', eyeShape: 'normal', top: 'jacket', back: 'bag', shoes: 'boots', eyewear: 'goggles', blaster: 'prism', hat: 'none', neck: 'none' };
 
 /**
  * Nova's body (pivot at the feet). `look` comes from the wardrobe: { colors, pattern, ears, tail,
@@ -64,6 +64,10 @@ function novaBody(look = {}) {
   n.box(5, 11, -1, 6, 14, 1, sleeve).box(5, 10, 0, 6, 11, 3, sleeve).box(5, 10, 0, 6, 10, 3, L.top === 'vest' ? C.fur : C.trim);
   if (L.top === 'vest') n.box(-6, 13, -1, -5, 14, 1, C.white).box(5, 13, -1, 6, 14, 1, C.white); // t-shirt sleeves
   n.box(5, 9, 3, 6, 10, 4, paw);
+  wearGloves(n, L.gloves, C);
+  if (L.bottoms === 'skirt') {
+    for (let y = 3; y <= 6; y++) { const r = y < 5 ? 5 : 4; n.box(-r, y, -3, r, y, 3, y === 3 ? C.trim : C.bottoms); }
+  }
 
   // ---- blaster
   wearBlaster(n, L.blaster, C);
@@ -90,11 +94,13 @@ function novaBody(look = {}) {
   n.box(-4, 15, 4, -3, 15, 4, C.white).box(3, 15, 4, 4, 15, 4, C.white);
   n.set(0, 16, 5, C.pink).set(0, 15, 5, C.eye);
   for (const ex of [-3, 3]) drawEye(n, ex, L.eyeShape, C);
+  drawFace(n, L.face, C);
   for (const s of [-1, 1]) n.set(6 * s, 16, 3, C.white).set(6 * s, 15, 3, C.white);
   wearEyewear(n, L.eyewear, C);
 
-  // ---- ears
+  // ---- ears and hair
   for (const s of [-1, 1]) drawEar(n, s, L.ears, dark, C);
+  drawHair(n, L.hair, C);
 
   // ---- tail
   drawTail(n, L.tail, pat, C);
@@ -104,6 +110,46 @@ function novaBody(look = {}) {
   wearHat(n, L.hat, C);
   wearNeck(n, L.neck, C);
   return n;
+}
+
+/** Hair tufts sit between the ears (x -1..1, y 23+) or at the back and sides of the head. */
+function drawHair(n, kind, C) {
+  switch (kind) {
+    case 'cowlick': n.set(0, 23, 1, C.fur).set(0, 24, 0, C.fur).set(1, 25, 0, C.fur).set(1, 24, -1, C.furDark); break;
+    case 'mohawk': n.box(0, 23, -4, 0, 24, 3, C.trim).box(0, 25, -2, 0, 25, 1, C.trim); break;
+    case 'spiky': for (const [x, y, z] of [[-1, 23, 2], [0, 24, 0], [1, 23, -2], [0, 25, -1], [-1, 24, -3], [1, 24, 1]]) n.set(x, y, z, C.fur); break;
+    case 'bun': n.box(-1, 21, -6, 1, 23, -5, C.furDark).box(-1, 22, -5, 1, 22, -5, C.trim); break;
+    case 'pigtails':
+      for (const s of [-1, 1]) n.box(s * 6, 16, -3, s * 7, 20, -2, C.furDark).set(s * 6, 20, -1, C.trim).set(s * 7, 15, -3, C.furDark);
+      break;
+    case 'fringe': n.box(-4, 22, 5, 4, 22, 5, C.furDark).set(-3, 21, 5, C.furDark).set(-1, 21, 5, C.furDark).set(2, 21, 5, C.furDark); break;
+    default: break;
+  }
+}
+
+/** Face markings, drawn over the cheeks and nose after the eyes. */
+function drawFace(n, kind, C) {
+  switch (kind) {
+    case 'blush': for (const s of [-1, 1]) n.box(s * 3, 16, 4, s * 4, 16, 4, '#ff9fb8'); break;
+    case 'freckles': for (const [x, y] of [[-3, 16], [-4, 15], [-2, 15], [3, 16], [4, 15], [2, 15]]) n.set(x, y, 4, C.furDark); break;
+    case 'star': n.set(4, 16, 4, C.trim).set(3, 16, 4, C.trim).set(4, 15, 4, C.trim).set(5, 16, 3, C.trim); break;
+    case 'warpaint': for (const s of [-1, 1]) n.box(s * 2, 16, 4, s * 4, 16, 4, '#ff4f6d').box(s * 3, 15, 4, s * 4, 15, 4, '#ff4f6d'); break;
+    case 'bandage': n.box(-2, 17, 5, 2, 17, 5, '#fff4e6').set(-1, 17, 5, '#ffcfd8').set(1, 17, 5, '#ffcfd8'); break;
+    case 'whiskers': for (const s of [-1, 1]) n.box(s * 6, 16, 4, s * 8, 16, 4, '#ffffff').box(s * 6, 15, 4, s * 8, 15, 4, '#ffffff'); break;
+    default: break;
+  }
+}
+
+/** Gloves replace the paws (left paw x -6..-5 y 8-9; right paw holds the blaster at z 3-4). */
+function wearGloves(n, kind, C) {
+  const both = (col) => n.box(-6, 8, -1, -5, 9, 1, col).box(5, 9, 3, 6, 10, 4, col);
+  switch (kind) {
+    case 'mittens': both(C.trim); n.box(-6, 10, -1, -5, 10, 1, '#ffffff').box(5, 10, 2, 6, 10, 2, '#ffffff'); break;
+    case 'fingerless': both('#2a2f40'); n.box(-6, 8, -1, -5, 8, 1, C.fur).box(5, 9, 4, 6, 10, 4, C.fur); break;
+    case 'gauntlets': both('#c9ced6'); n.box(-6, 10, -1, -5, 11, 1, '#c9ced6').set(-6, 9, 1, C.lens).set(6, 10, 3, C.lens); break;
+    case 'boxing': n.box(-7, 7, -2, -4, 9, 2, '#ff4f6d').box(5, 9, 3, 7, 11, 5, '#ff4f6d').box(-7, 9, -2, -4, 9, 2, '#ffffff'); break;
+    default: break;
+  }
 }
 
 function drawEye(n, ex, shape, C) {
@@ -345,6 +391,8 @@ function novaLeg(look = {}) {
   const fur = L.pattern === 'points' ? C.furDark : C.fur;
   const sock = L.pattern === 'tuxedo' ? C.white : fur;
   const m = model().box(-1, 2, -1, 1, 5, 1, fur).box(-1, 2, -1, 1, 2, 1, sock);
+  if (L.bottoms === 'shorts') m.box(-1, 4, -1, 1, 5, 1, C.bottoms);
+  if (L.bottoms === 'pants') m.box(-1, 2, -1, 1, 5, 1, C.bottoms).box(-1, 2, -1, 1, 2, 1, C.trim);
   switch (L.shoes) {
     case 'sneakers':
       return m.box(-1, 0, -1, 1, 1, 2, '#f4f7ff').box(-1, 0, -1, 1, 0, 2, C.trim).box(-1, 1, 0, -1, 1, 1, C.jacket).box(1, 1, 0, 1, 1, 1, C.jacket);
@@ -357,10 +405,24 @@ function novaLeg(look = {}) {
   }
 }
 
+/**
+ * Only the lenses and the blaster glow on Nova, and only Smudge's eye, are unlit: other models add
+ * colours like sunflower yellow and mint to the shared GLOW list, and those must stay lit on them.
+ */
+function novaGlow(look = {}) {
+  const C = { ...BASE_C, ...look.colors };
+  return new Set([C.lens, C.glowPink, C.barrel]);
+}
+function smudgeGlow(look = {}) { return new Set([{ ...SMUDGE, ...look.smudgeColors }.eye]); }
+
 /** Meshes for a look without touching the shared MESH entries (wardrobe thumbnails). */
 export function novaMeshes(look = {}) {
-  return { body: meshModel(novaBody(look), S), leg: meshModel(novaLeg(look), S, [0, 6, 0]) };
+  const glow = novaGlow(look);
+  return { body: meshModel(novaBody(look), S, [0, 0, 0], glow), leg: meshModel(novaLeg(look), S, [0, 6, 0], glow) };
 }
+
+/** Smudge's mesh for a look, without touching MESH (wardrobe thumbnails). */
+export function smudgeMesh(look = {}) { return meshModel(smudgeModel(look), S * 0.8, [0, 0, 0], smudgeGlow(look)); }
 
 // ---------------- Greyscale robots ----------------
 
@@ -761,14 +823,14 @@ function geode() {
 }
 
 /** Turn a voxel model into crackling TV static (keeps glowing parts, tints them cyan). */
-function staticify(mdl, seed = 0) {
+function staticify(mdl, seed = 0, glowSet = GLOW) {
   GLOW.add('#9dfbff');
   const out = model();
   for (const [k, c] of mdl.m) {
     const [x, y, z] = k.split(',').map(Number);
     // keep the original's light and dark (so it still reads as Nova), then add noise on top
     const tone = Math.round(lum(c) * 4.2 + (nhash(x + seed, y * 3, z) - 0.5) * 1.6);
-    out.m.set(k, GLOW.has(c) ? '#9dfbff' : NOISE[Math.max(0, Math.min(NOISE.length - 1, tone))]);
+    out.m.set(k, glowSet.has(c) ? '#9dfbff' : NOISE[Math.max(0, Math.min(NOISE.length - 1, tone))]);
   }
   return out;
 }
@@ -1094,7 +1156,7 @@ export const MESH = {
   novaBody: null, // built by applyNovaLook
   novaLeg: null,
   drab: meshModel(drab(), S),
-  smudge: meshModel(drab(SMUDGE), S * 0.8),
+  smudge: null, // built by applyNovaLook
   mopper: meshModel(mopper(), S),
   mopperBare: meshModel(mopper(false), S),
   fizz: meshModel(fizz(), S),
@@ -1157,19 +1219,61 @@ export const MESH = {
   sweeperTanks: ['#ff3d5e', '#ffd000', '#3d8bff'].map((c) => meshModel(sweeperTank(c), SB)),
 };
 
+/** Smudge from the wardrobe: a paint scheme plus an antenna or a little hat. */
+function smudgeModel(look = {}) {
+  const p = { ...SMUDGE, ...look.smudgeColors };
+  const d = drab(p);
+  d.del(0, 11, 0).del(0, 12, 0).del(0, 13, 0);
+  switch (look.smudgeTop) {
+    case 'heart':
+      d.set(0, 11, 0, p.dark).set(0, 12, 0, p.dark).box(-1, 13, 0, 1, 14, 0, '#ff4f6d').del(0, 14, 0).set(0, 12, 1, '#ff4f6d');
+      break;
+    case 'double':
+      for (const x of [-2, 2]) d.set(x, 11, 0, p.dark).set(x, 12, 0, p.dark).set(x, 13, 0, p.eye);
+      break;
+    case 'propeller':
+      d.box(-1, 11, -1, 1, 11, 1, '#ffd23f').set(0, 12, 0, p.dark).box(-3, 13, 0, 3, 13, 0, '#ff4f6d').box(0, 13, -3, 0, 13, 3, '#62a8ff').set(0, 13, 0, '#ffffff');
+      break;
+    case 'flower':
+      d.set(0, 11, 0, '#3f9b4a').set(0, 12, 0, '#3f9b4a').set(0, 13, 0, '#ffd23f');
+      for (const [x, y, z] of [[-1, 13, 0], [1, 13, 0], [0, 14, 0], [0, 13, -1], [0, 13, 1]]) d.set(x, y, z, '#ff8fb1');
+      break;
+    case 'bow':
+      d.box(-3, 11, 0, -1, 12, 0, '#ff4f6d').box(1, 11, 0, 3, 12, 0, '#ff4f6d').set(0, 11, 0, '#c4304f');
+      break;
+    case 'tophat':
+      d.box(-2, 11, -2, 2, 11, 2, '#1c1a33').box(-1, 12, -1, 1, 14, 1, '#1c1a33').box(-1, 12, -1, 1, 12, 1, '#c4304f');
+      break;
+    case 'party':
+      for (let y = 11; y <= 14; y++) { const r = y < 13 ? 1 : 0; d.box(-r, y, -r, r, y, r, y % 2 ? '#ff4f6d' : '#ffd23f'); }
+      d.set(0, 15, 0, '#7ef0c8');
+      break;
+    case 'crown':
+      d.box(-2, 11, -2, 2, 11, 2, '#ffd23f');
+      for (const [x, z] of [[-2, -2], [2, -2], [-2, 2], [2, 2], [0, 2]]) d.set(x, 12, z, '#ffd23f');
+      d.set(0, 11, 3, '#ff4f6d');
+      break;
+    default:
+      d.set(0, 11, 0, p.dark).set(0, 12, 0, p.dark).set(0, 13, 0, p.eye);
+  }
+  return d;
+}
+
 /**
  * (Re)build Nova's meshes for a look from the wardrobe ({ colors, hat, neck }).
  * The Echo is a static copy of Nova, so it is rebuilt to match.
  */
 export function applyNovaLook(look = {}) {
-  for (const k of ['novaBody', 'novaLeg', 'echoBody', 'echoLeg']) {
+  for (const k of ['novaBody', 'novaLeg', 'echoBody', 'echoLeg', 'smudge']) {
     const old = MESH[k];
     if (old) { old.solid?.dispose(); old.glow?.dispose(); }
   }
-  MESH.novaBody = meshModel(novaBody(look), S);
-  MESH.novaLeg = meshModel(novaLeg(look), S, [0, 6, 0]);
-  MESH.echoBody = meshModel(staticify(novaBody(look)), S * 1.9);
-  MESH.echoLeg = meshModel(staticify(novaLeg(look), 5), S * 1.9, [0, 6, 0]);
+  const glow = novaGlow(look);
+  MESH.novaBody = meshModel(novaBody(look), S, [0, 0, 0], glow);
+  MESH.novaLeg = meshModel(novaLeg(look), S, [0, 6, 0], glow);
+  MESH.echoBody = meshModel(staticify(novaBody(look), 0, glow), S * 1.9);
+  MESH.echoLeg = meshModel(staticify(novaLeg(look), 5, glow), S * 1.9, [0, 6, 0]);
+  MESH.smudge = meshModel(smudgeModel(look), S * 0.8, [0, 0, 0], smudgeGlow(look));
 }
 applyNovaLook();
 

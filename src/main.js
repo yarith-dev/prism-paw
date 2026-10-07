@@ -4,6 +4,7 @@ import { Hud } from './hud.js';
 import { Screens } from './screens.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
+import { PAINT } from './util.js';
 import { Music, trackFor } from './music.js';
 import { settings } from './settings.js';
 import { applyNovaLook } from './models.js';
@@ -53,11 +54,13 @@ save.load();
 save.seedGoal = TOTAL_SEEDS;
 /** Rebuild Nova from the stored wardrobe look (accessories the save hasn't unlocked are left off). */
 function dressNova(look = loadLook()) {
-  applyNovaLook(resolveLook(look, save));
-  clearPortrait('nova');
-  clearPortrait('echo');
+  const r = resolveLook(look, save);
+  applyNovaLook(r);
+  for (const k of ['nova', 'echo', 'smudge']) clearPortrait(k);
+  PAINT.splice(0, PAINT.length, ...r.palette); // splats and paint bursts use the chosen palette
+  const trail = WARDROBE.trail.options.find((o) => o.id === r.trail);
+  game.setTrail(r.trail, Object.values(trail?.colors || {}));
 }
-dressNova();
 const hud = new Hud();
 const sfx = new Sfx();
 const music = new Music(sfx);
@@ -76,6 +79,7 @@ const setCompact = () => document.body.classList.toggle('compact', input.touch &
 setCompact();
 addEventListener('resize', setCompact);
 const game = new Game(renderer, hud, input, sfx);
+dressNova();
 let last = performance.now();
 
 /** Drop key presses from the event that closed a menu, so E/Esc don't instantly reopen it. */
@@ -313,4 +317,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // handy for debugging from the console
-window.prismPaw = { game, save, screens, playLevel, toHub, renderer, music, resolution: () => ({ dpr: renderer.getPixelRatio(), autoDpr, max: MAX_DPR }), adaptResolution };
+window.prismPaw = { game, save, screens, playLevel, toHub, renderer, music, paint: PAINT, resolution: () => ({ dpr: renderer.getPixelRatio(), autoDpr, max: MAX_DPR }), adaptResolution };

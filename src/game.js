@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { instance, setFlash, glowMaterial } from './voxel.js';
 import { MESH, MUZZLE, S, NPC, CITIZENS, PAINT_JARS } from './models.js';
-import { angleTo, pick, PAINT, GREYS, PLAYER_R } from './util.js';
+import { angleTo, pick, PAINT, RAINBOW, GREYS, PLAYER_R } from './util.js';
 import { BOSSES } from './bosses/index.js';
 import { Sky, PaintWhale } from './sky.js';
 import { Level, TILE, BREAKABLE } from './level.js';
@@ -104,7 +104,7 @@ export class Game {
       const c = document.createElement('canvas');
       c.width = 64; c.height = 4;
       const ctx = c.getContext('2d');
-      PAINT.forEach((col, i) => { ctx.fillStyle = col; ctx.fillRect(i * 64 / PAINT.length, 0, 64 / PAINT.length + 1, 4); });
+      RAINBOW.forEach((col, i) => { ctx.fillStyle = col; ctx.fillRect(i * 64 / RAINBOW.length, 0, 64 / RAINBOW.length + 1, 4); });
       const tex = new THREE.CanvasTexture(c);
       tex.wrapS = THREE.RepeatWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -411,8 +411,42 @@ export class Game {
     this.hud.setHealth(this.player.hp, this.maxHp);
   }
 
-  /** Swap Nova's meshes after a wardrobe change (keeps position, materials and x-ray ghosts). */
+  /** Wardrobe trail: { kind, colors }. */
+  setTrail(kind, colors) { this.trail = { kind, colors, t: 0, side: 1 }; }
+
+  /** Little puffs (or paint footprints) behind Nova while she runs. */
+  updateTrail(dt) {
+    const tr = this.trail, pl = this.player;
+    if (!tr || tr.kind === 'none' || !tr.colors.length) return;
+    tr.t -= dt;
+    if (tr.t > 0) return;
+    const back = pl.yaw + Math.PI, sx = Math.cos(pl.yaw), sz = -Math.sin(pl.yaw);
+    if (tr.kind === 'paint') {
+      tr.t = 0.16;
+      tr.side = -tr.side;
+      this.level.splat(pl.pos.x + sx * 0.35 * tr.side + Math.sin(back) * 0.3, pl.pos.z + sz * 0.35 * tr.side + Math.cos(back) * 0.3, 0.32, pick(tr.colors), 2);
+      return;
+    }
+    tr.t = 0.045;
+    const up = { bubbles: 5, embers: 6, hearts: 4, stardust: 3, sparkles: 3 }[tr.kind] || 3;
+    const p = this.p, i = p.next, c = new THREE.Color();
+    p.next = (p.next + 1) % this.pN;
+    p.x[i] = pl.pos.x + Math.sin(back) * 0.6 + (Math.random() - 0.5) * 0.7;
+    p.z[i] = pl.pos.z + Math.cos(back) * 0.6 + (Math.random() - 0.5) * 0.7;
+    p.y[i] = 0.4 + Math.random() * 0.8;
+    p.vx[i] = (Math.random() - 0.5) * 1.2; p.vz[i] = (Math.random() - 0.5) * 1.2; p.vy[i] = up * (0.6 + Math.random() * 0.6);
+    p.life[i] = p.max[i] = 0.45 + Math.random() * 0.35;
+    this.pMesh.setColorAt(i, c.set(pick(tr.colors)));
+    this.pMesh.instanceColor.needsUpdate = true;
+  }
+
+  /** Swap Nova's (and Smudge's) meshes after a wardrobe change (keeps position, materials and x-ray ghosts). */
   restylePlayer() {
+    if (this.smudge) {
+      const [solid, glow] = this.smudge.group.children;
+      solid.geometry = MESH.smudge.solid;
+      if (glow && MESH.smudge.glow) glow.geometry = MESH.smudge.glow;
+    }
     const pl = this.player;
     if (!pl) return;
     for (const [part, meshed] of [[pl.body, MESH.novaBody], [pl.legL, MESH.novaLeg], [pl.legR, MESH.novaLeg]]) {
@@ -648,6 +682,7 @@ export class Game {
 
     const moving = Math.hypot(pl.vel.x, pl.vel.z);
     pl.walk += dt * moving * 1.6;
+    if (moving > 0.2 && !pl.jump) this.updateTrail(dt);
     const swing = Math.min(1, moving / 6) * 0.7;
     pl.legL.rotation.x = Math.sin(pl.walk) * swing;
     pl.legR.rotation.x = -Math.sin(pl.walk) * swing;
