@@ -3,15 +3,20 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:federation": "vite build -c vite.federation.config.js && node gateway/finish-build.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@fontsource/fredoka": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
+    "@module-federation/vite": "1.23.2",
     "vite": "^8.3.2"
   }
 }

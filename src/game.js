@@ -79,7 +79,7 @@ export class Game {
     this.hud = hud;
     this.input = input;
     this.sfx = sfx;
-    this.camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 400);
+    this.camera = new THREE.PerspectiveCamera(42, this.viewW / this.viewH, 1, 400);
     this.raycaster = new THREE.Raycaster();
     this.aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -MUZZLE.y);
     this.boltGeo = new THREE.BoxGeometry(0.24, 0.24, 1.0);
@@ -98,7 +98,7 @@ export class Game {
       for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) { const v = Math.random() * 255 | 0; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x, y, 1, 1); }
       this.staticFx.style.backgroundImage = `url(${c.toDataURL()})`;
     }
-    document.getElementById('app').appendChild(this.staticFx);
+    renderer.domElement.parentElement.appendChild(this.staticFx);
     {
       // Rainbow Beam: a stretched box with a scrolling rainbow texture, plus a white core
       const c = document.createElement('canvas');
@@ -243,7 +243,7 @@ export class Game {
     this.storm = def.storm ? { t: def.storm.first ?? 10, warn: 0, on: 0, level: 0 } : null;
     this.surge = 0;
     this.staticFx.classList.remove('on');
-    document.getElementById('order')?.remove(); // the Curator's banner, if a fight was left halfway
+    this.hud.root.querySelector('#order')?.remove(); // the Curator's banner, if a fight was left halfway
     this.breakables = [];
     this.level.grid.forEach((row, ty) => row.forEach((ch, tx) => {
       if (!BREAKABLE.has(ch)) return;
@@ -666,7 +666,7 @@ export class Game {
       pl.aim.set(stick.x, 0, stick.z).normalize();
       if (inp.usingTouch) this.aimAssist(pl.aim);
     } else if (inp.mouse.seen && !inp.usingTouch && !inp.usingPad) {
-      const ndc = new THREE.Vector2((inp.mouse.x / innerWidth) * 2 - 1, -(inp.mouse.y / innerHeight) * 2 + 1);
+      const ndc = new THREE.Vector2((inp.mouse.x / this.viewW) * 2 - 1, -(inp.mouse.y / this.viewH) * 2 + 1);
       this.raycaster.setFromCamera(ndc, this.camera);
       const hit = new THREE.Vector3();
       if (this.raycaster.ray.intersectPlane(this.aimPlane, hit)) {
@@ -2403,8 +2403,12 @@ export class Game {
 
   // ------------------------------------------------------------------ camera
 
+  /** The game's size on screen in CSS pixels (its canvas fills the game's box). */
+  get viewW() { return this.renderer.domElement.clientWidth || innerWidth; }
+  get viewH() { return this.renderer.domElement.clientHeight || innerHeight; }
+
   resize() {
-    const aspect = innerWidth / innerHeight;
+    const aspect = this.viewW / this.viewH;
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
     this.camDist = (aspect < 1 ? 1.4 : aspect < 1.4 ? 1.15 : 1) * (this.isHub ? 0.9 : 1);

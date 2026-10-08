@@ -15,8 +15,8 @@ const SPEAKER_COLOR = {
 
 /** In-game heads-up display. Menus and screens live in screens.js. */
 export class Hud {
-  constructor() {
-    this.root = $('#hud');
+  constructor(main) {
+    this.root = $('#hud', main);
     this.dialogue = $('.dialogue', this.root);
     this.mini = $('.minimap canvas', this.root);
     this.miniCtx = this.mini.getContext('2d');
