@@ -4,7 +4,7 @@ import { MESH, MUZZLE, S, NPC, CITIZENS, PAINT_JARS } from './models.js';
 import { angleTo, pick, PAINT, RAINBOW, GREYS, PLAYER_R } from './util.js';
 import { BOSSES } from './bosses/index.js';
 import { Sky, PaintWhale } from './sky.js';
-import { Level, TILE, BREAKABLE } from './level.js';
+import { Level, TILE, BREAKABLE, WAVE_SPEED } from './level.js';
 import { WEAPONS, WEAPON_ORDER, ITEMS } from './data/shop.js';
 import { THAW_LINES, PIP_LINES, MURALS } from './data/story.js';
 import { save } from './save.js';
@@ -132,31 +132,40 @@ export class Game {
   // ------------------------------------------------------------------ setup
 
   /**
-   * Push painted ground to the GPU. Only the changed rectangle is copied (a full upload of a
-   * big level's ground canvas costs several ms); before the texture's first upload, or when
-   * most of it changed, the whole canvas goes up.
+   * Push painted ground to the GPU: only the changed patches, at most `budget` pixels a frame (a
+   * big patch goes up in slices over a few frames instead of stalling one).
    */
-  uploadGround() {
-    const lv = this.level, tex = lv.groundTex, rects = lv.dirtyRects || [];
-    lv.groundDirty = false;
-    lv.dirtyRects = [];
-    const W = tex.image.width, H = tex.image.height;
-    const ready = !!this.renderer.properties.get(tex).__webglTexture;
-    const area = rects.reduce((a, r) => a + (r.x1 - r.x0) * (r.y1 - r.y0), 0);
-    if (!rects.length || !ready || area > W * H * 0.5) { tex.needsUpdate = true; return; }
-    this.groundRegion ||= new THREE.Box2();
-    this.groundDst ||= new THREE.Vector2();
-    const mips = tex.generateMipmaps;
-    rects.forEach((r, i) => {
-      // rebuild mipmaps once, after the last patch; the texture is stored flipped (rows from the bottom)
-      tex.generateMipmaps = mips && i === rects.length - 1;
-      const y = H - r.y1;
-      this.groundRegion.min.set(r.x0, y);
-      this.groundRegion.max.set(r.x1, y + (r.y1 - r.y0));
-      this.groundDst.set(r.x0, y);
-      this.renderer.copyTextureToTexture(tex, tex, this.groundRegion, this.groundDst);
-    });
-    tex.generateMipmaps = mips;
+  uploadGround(budget = 600_000) {
+    const lv = this.level, tex = lv.groundTex, rects = (lv.dirtyRects ||= []);
+    const glTex = this.renderer.properties.get(tex).__webglTexture;
+    if (!glTex) {
+      // not on the GPU yet: the first render uploads the whole canvas
+      tex.needsUpdate = true;
+      rects.length = 0;
+      lv.groundDirty = false;
+      return;
+    }
+    // Upload pixels read from the canvas. (Handing WebGL the canvas itself makes the browser read
+    // back all 4 megapixels for every patch: 50-130 ms.)
+    const gl = this.renderer.getContext(), H = tex.image.height;
+    this.renderer.state.bindTexture(gl.TEXTURE_2D, glTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    while (rects.length && budget > 0) {
+      const r = rects[0], w = r.x1 - r.x0;
+      const rows = Math.max(1, Math.min(r.y1 - r.y0, Math.floor(budget / w)));
+      const src = lv.groundCtx.getImageData(r.x0, r.y0, w, rows).data;
+      // the texture is stored flipped (rows from the bottom)
+      const flipped = new Uint8Array(src.length), row = w * 4;
+      for (let y = 0; y < rows; y++) flipped.set(src.subarray(y * row, (y + 1) * row), (rows - 1 - y) * row);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, r.x0, H - r.y0 - rows, w, rows, gl.RGBA, gl.UNSIGNED_BYTE, flipped);
+      budget -= w * rows;
+      r.y0 += rows;
+      if (r.y0 >= r.y1) rects.shift();
+    }
+    if (tex.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
+    lv.groundDirty = rects.length > 0;
   }
 
   /**
@@ -184,8 +193,8 @@ export class Game {
   load(def) {
     this.def = def;
     this.isHub = !!def.hub;
-    if (this.scene) this.disposeScene(this.scene);
-    if (this.level) this.level.dispose();
+    // the old level is freed at the end, once the new one has its shaders (see below)
+    const oldScene = this.scene, oldLevel = this.level;
     const scene = (this.scene = new THREE.Scene());
     const nature = def.theme === 'jungle' || def.theme === 'ruins';
     const docks = def.theme === 'docks';
@@ -376,6 +385,13 @@ export class Game {
     if (def.lines?.intro) this.hud.say(def.lines.intro);
     this.checkStages(true);
     this.updateObjective();
+    // Compile the new level's shaders while the old level's materials still use the same ones:
+    // three.js then reuses them instead of compiling every shader again (300-500 ms per level).
+    this.renderer.compile(scene, this.camera);
+    // upload the full-colour ground for the finale now, not in the middle of it (~100 ms)
+    if (!this.isHub) this.renderer.initTexture(this.level.waveTexture());
+    if (oldScene) this.disposeScene(oldScene);
+    if (oldLevel) oldLevel.dispose();
     this.state = 'play';
   }
 
@@ -607,9 +623,10 @@ export class Game {
     this.updateParticles(dt);
     this.updateCamera(dt);
     this.groundTimer += dt;
+    // paint is batched for a tenth of a second; a patch too big for one frame keeps going next frame
     if (this.level.groundDirty && this.groundTimer > 0.1) {
       this.uploadGround();
-      this.groundTimer = 0;
+      this.groundTimer = this.level.groundDirty ? 0.1 : 0;
     }
     this.mapTimer -= dt;
     if (this.mapTimer <= 0) { this.mapTimer = 0.1; this.hud.drawMinimap(this); }
@@ -2316,8 +2333,8 @@ export class Game {
     }
     if (this.phase === 'wave') {
       const c = this.waveCenter;
-      this.waveR += dt * 26;
-      this.level.colorWave(c.x, c.z, this.waveR);
+      this.waveR += dt * WAVE_SPEED;
+      this.level.wave(c.x, c.z, this.waveR);
       for (const e of [...this.enemies]) {
         if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < this.waveR) this.killEnemy(e, false);
       }

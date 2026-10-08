@@ -86,6 +86,7 @@ src/
   levels/        the 20 levels and the workshop hub
   data/          story and comics, shop, wardrobe
   dev/autoplay.js  dev-only bot used for difficulty tuning (not in the build)
+  dev/profile.js   dev-only frame profiler: the bot plays while it times each frame
 gateway/         the gateway build's static server and finish step
 ```
 

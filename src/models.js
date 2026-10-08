@@ -1,4 +1,4 @@
-import { GLOW, model, meshModel } from './voxel.js';
+import { GLOW, model, meshModel, unkey } from './voxel.js';
 
 /** Character voxel size in world units. Nova is ~3.2 units tall. */
 export const S = 0.13;
@@ -827,7 +827,7 @@ function staticify(mdl, seed = 0, glowSet = GLOW) {
   GLOW.add('#9dfbff');
   const out = model();
   for (const [k, c] of mdl.m) {
-    const [x, y, z] = k.split(',').map(Number);
+    const [x, y, z] = unkey(k);
     // keep the original's light and dark (so it still reads as Nova), then add noise on top
     const tone = Math.round(lum(c) * 4.2 + (nhash(x + seed, y * 3, z) - 0.5) * 1.6);
     out.m.set(k, glowSet.has(c) ? '#9dfbff' : NOISE[Math.max(0, Math.min(NOISE.length - 1, tone))]);

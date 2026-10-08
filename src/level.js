@@ -4,6 +4,8 @@ import { GLOW, model, meshModel } from './voxel.js';
 export const TILE = 4;           // world units per map tile
 const VOX = 0.5;                  // scenery voxel size
 const PER = TILE / VOX;           // scenery voxels per tile edge (8)
+const CHUNK = 8;                  // scenery is meshed in columns this many tiles wide
+export const WAVE_SPEED = 26;     // how fast the finale's colour wave spreads, world units a second
 const PX = 16;                    // ground texture pixels per world unit
 
 export const SOLID = new Set(['#', 'B', 'L', 'W', 'Q', 'P', 'K', 'T', 'D', 'R', 'U', 'G', 'O', 'I', 'J', 'H', 'C']);
@@ -168,22 +170,38 @@ export class Level {
 
   buildGround() {
     const cw = this.width * PX, ch = this.depth * PX;
+    // CPU-backed canvases: the game reads painted patches back to upload them, which stalls a
+    // GPU canvas (the first read moves it to the CPU anyway)
     const make = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
+    const ctx = (c) => c.getContext('2d', { willReadFrequently: true });
     this.groundGrey = make();
     this.groundColor = make();
-    this.paintTiles(this.groundGrey.getContext('2d'), false);
-    this.paintTiles(this.groundColor.getContext('2d'), true);
+    this.paintTiles(ctx(this.groundGrey), false);
+    this.paintTiles(ctx(this.groundColor), true);
     this.ground = make();
-    this.groundCtx = this.ground.getContext('2d');
+    this.groundCtx = ctx(this.ground);
     this.groundCtx.drawImage(this.colorful ? this.groundColor : this.groundGrey, 0, 0);
     this.groundTex = new THREE.CanvasTexture(this.ground);
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     this.groundTex.anisotropy = 4;
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.width, this.depth),
-      // the docks float: sky gaps are transparent holes in the ground texture
-      new THREE.MeshLambertMaterial({ map: this.groundTex, alphaTest: this.theme === 'docks' ? 0.5 : 0 }),
-    );
+    // the docks float: sky gaps are transparent holes in the ground texture
+    const material = new THREE.MeshLambertMaterial({ map: this.groundTex, alphaTest: this.theme === 'docks' ? 0.5 : 0 });
+    // The finale's colour wave is drawn by the ground's shader (see wave()): repainting and
+    // re-uploading megapixels of canvas every frame stalled the game right at its best moment.
+    this.waveUniforms = { waveMap: { value: null }, waveCenter: { value: new THREE.Vector2() }, waveRadius: { value: -1 } };
+    material.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, this.waveUniforms);
+      shader.vertexShader = `varying vec2 vWaveXZ;\n${shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+	vWaveXZ = (modelMatrix * vec4(transformed, 1.0)).xz;`)}`;
+      shader.fragmentShader = `uniform sampler2D waveMap;\nuniform vec2 waveCenter;\nuniform float waveRadius;\nvarying vec2 vWaveXZ;\n${shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+	if (waveRadius > 0.0) {
+		// as the canvas used to: a quarter of the way to full colour every frame (at 60 fps) behind the edge
+		float behind = waveRadius - distance(vWaveXZ, waveCenter);
+		if (behind > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(waveMap, vMapUv).rgb, 1.0 - pow(0.75, behind * ${(60 / WAVE_SPEED).toFixed(5)}));
+	}`)}`;
+    };
+    material.customProgramCacheKey = () => 'ground-wave';
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(this.width, this.depth), material);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set(this.width / 2, 0, this.depth / 2);
     mesh.receiveShadow = true;
@@ -862,34 +880,40 @@ export class Level {
         m.box(ox + 2, 5, oz + 2, ox + 5, 5, oz + 5, '#f4e3b5').set(ox + 3, 5, oz + 3, '#ff4f6d').set(ox + 4, 5, oz + 4, '#62a8ff').set(ox + 4, 6, oz + 3, '#ff4fd8');
       }
     }
-    const meshed = meshModel(m, VOX);
-    const geo = meshed.solid;
-    // voxel (x,y,z) was meshed centred on x/z; shift so voxel (0,0) covers world [0, VOX]
-    geo.translate(VOX / 2, 0, VOX / 2);
+    // voxel (x, y, z) covers world [x, x+1] × [z, z+1] (in voxels): mesh with a half-voxel offset.
+    // The level is cut into columns CHUNK tiles wide: columns off screen (or outside the sun's
+    // shadow box) aren't drawn, and the colour wave only recolours the columns it reaches.
+    const parts = meshModel(m, VOX, [-0.5, 0, -0.5], GLOW, CHUNK * PER);
     const greyOf = (g) => {
       const full = g.getAttribute('color').array.slice();
       const grey = new Float32Array(full.length);
-      const c = new THREE.Color();
+      const gr = GREY.r, gg = GREY.g, gb = GREY.b;
       for (let i = 0; i < full.length; i += 3) {
-        c.setRGB(full[i], full[i + 1], full[i + 2]);
-        const lum = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
-        c.setRGB(lum, lum, lum).lerp(GREY, 0.45);
-        // keep a hint of the original hue: drained, not dead
-        grey[i] = c.r * 0.8 + full[i] * 0.2; grey[i + 1] = c.g * 0.8 + full[i + 1] * 0.2; grey[i + 2] = c.b * 0.8 + full[i + 2] * 0.2;
+        const r = full[i], gn = full[i + 1], b = full[i + 2];
+        const lum = r * 0.3 + gn * 0.59 + b * 0.11;
+        // luminance pulled 45% toward the level grey, keeping a hint of the original hue: drained, not dead
+        grey[i] = (lum + (gr - lum) * 0.45) * 0.8 + r * 0.2;
+        grey[i + 1] = (lum + (gg - lum) * 0.45) * 0.8 + gn * 0.2;
+        grey[i + 2] = (lum + (gb - lum) * 0.45) * 0.8 + b * 0.2;
       }
       if (!this.colorful) g.getAttribute('color').array.set(grey);
-      return { full, grey, pos: g.getAttribute('position').array, attr: g.getAttribute('color'), t: new Float32Array(full.length / 3) };
+      g.computeBoundingBox();
+      const vertices = full.length / 3;
+      return { full, grey, pos: g.getAttribute('position').array, attr: g.getAttribute('color'), t: new Float32Array(vertices), left: vertices, box: g.boundingBox };
     };
-    if (meshed.glow) {
-      meshed.glow.translate(VOX / 2, 0, VOX / 2);
-      this.glowColors = greyOf(meshed.glow);
-      this.sceneryGlow = new THREE.Mesh(meshed.glow, new THREE.MeshBasicMaterial({ vertexColors: true }));
-      this.scene.add(this.sceneryGlow);
+    const solidMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+    this.scenery = new THREE.Group();
+    this.sceneryColors = [];
+    for (const part of parts) {
+      for (const [geo, mat] of [[part.solid, solidMat], [part.glow, glowMat]]) {
+        if (!geo) continue;
+        this.sceneryColors.push(greyOf(geo));
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = mesh.receiveShadow = mat === solidMat;
+        this.scenery.add(mesh);
+      }
     }
-    this.sceneryColors = greyOf(geo);
-    this.scenery = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
-    this.scenery.castShadow = true;
-    this.scenery.receiveShadow = true;
     this.scene.add(this.scenery);
   }
 
@@ -905,11 +929,10 @@ export class Level {
         else for (const y of [2, 4, 6]) m.set(x, y, z, '#f4f7ff');
       }
     }
-    const meshed = meshModel(m, VOX);
+    const meshed = meshModel(m, VOX, [-0.5, 0, -0.5]);
     this.barrier = new THREE.Group();
     for (const g of [meshed.solid, meshed.glow]) {
       if (!g) continue;
-      g.translate(VOX / 2, 0, VOX / 2);
       this.barrier.add(new THREE.Mesh(g, g === meshed.glow ? new THREE.MeshBasicMaterial({ vertexColors: true }) : new THREE.MeshLambertMaterial({ vertexColors: true })));
     }
     this.scene.add(this.barrier);
@@ -967,12 +990,13 @@ export class Level {
   }
 
   dispose() {
-    for (const obj of [this.groundMesh, this.scenery, this.sceneryGlow, this.rift, ...this.barrier.children]) {
+    for (const obj of [this.groundMesh, ...this.scenery.children, this.rift, ...this.barrier.children]) {
       if (!obj) continue;
       obj.geometry.dispose();
       obj.material.dispose();
     }
     this.groundTex.dispose();
+    this.waveTex?.dispose();
   }
 
   // ---------- the colour wave ending ----------
@@ -992,12 +1016,53 @@ export class Level {
     this.markGround(cx, cz, radius);
   }
 
-  /** Recolour everything within `radius` of (cx, cz). Call each frame while the wave grows. */
+  /** The finale's colour wave from (cx, cz) has reached `radius`. Call each frame while it grows. */
+  wave(cx, cz, radius) {
+    this.recolorScenery(cx, cz, radius, 10);
+    const u = this.waveUniforms;
+    u.waveMap.value = this.waveTexture();
+    u.waveCenter.value.set(cx, cz);
+    u.waveRadius.value = radius;
+  }
+
+  /** The full-colour ground the wave reveals (the game sends it to the GPU while the level loads). */
+  waveTexture() {
+    if (!this.waveTex) {
+      this.waveTex = new THREE.CanvasTexture(this.groundColor);
+      this.waveTex.colorSpace = THREE.SRGBColorSpace;
+      this.waveTex.anisotropy = 4;
+    }
+    return this.waveTex;
+  }
+
+  /** Recolour everything within `radius` of (cx, cz): scenery and the ground canvas. */
   colorWave(cx, cz, radius, band = 10) {
-    for (const set of [this.sceneryColors, this.glowColors]) {
-      if (!set) continue;
+    this.recolorScenery(cx, cz, radius, band);
+    const ctx = this.groundCtx, w = this.ground.width, h = this.ground.height;
+    const x0 = Math.max(0, Math.floor((cx - radius) * PX)), x1 = Math.min(w, Math.ceil((cx + radius) * PX));
+    const y0 = Math.max(0, Math.floor((cz - radius) * PX)), y1 = Math.min(h, Math.ceil((cz + radius) * PX));
+    if (x1 <= x0 || y1 <= y0) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx * PX, cz * PX, radius * PX, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = 0.25;
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.drawImage(this.groundColor, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    ctx.restore();
+    this.markGround(cx, cz, radius);
+  }
+
+  /** Recolour the scenery within `radius` of (cx, cz), fading in over the last `band` units. */
+  recolorScenery(cx, cz, radius, band) {
+    const r2 = radius * radius;
+    for (const set of this.sceneryColors) {
+      if (!set.left) continue; // this column is already fully coloured
+      const { min, max } = set.box;
+      const nx = Math.max(min.x, Math.min(cx, max.x)) - cx, nz = Math.max(min.z, Math.min(cz, max.z)) - cz;
+      if (nx * nx + nz * nz > r2) continue; // the wave hasn't reached it yet
       const { full, grey, pos, attr, t: tt } = set;
-      const arr = attr.array, r2 = radius * radius;
+      const arr = attr.array;
       let changed = false;
       for (let i = 0, v = 0; i < pos.length; i += 3, v++) {
         if (tt[v] >= 1) continue; // already fully coloured
@@ -1006,6 +1071,7 @@ export class Level {
         const t = Math.max(tt[v], Math.min(1, (radius - Math.sqrt(d2)) / band));
         if (t === tt[v]) continue;
         tt[v] = t;
+        if (t >= 1) set.left--;
         changed = true;
         arr[i] = grey[i] + (full[i] - grey[i]) * t;
         arr[i + 1] = grey[i + 1] + (full[i + 1] - grey[i + 1]) * t;
@@ -1013,15 +1079,5 @@ export class Level {
       }
       if (changed) attr.needsUpdate = true;
     }
-    const ctx = this.groundCtx;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx * PX, cz * PX, radius * PX, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalAlpha = 0.25;
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.drawImage(this.groundColor, 0, 0);
-    ctx.restore();
-    this.markGround(cx, cz, radius);
   }
 }

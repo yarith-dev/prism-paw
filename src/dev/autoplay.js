@@ -28,7 +28,7 @@ export const PAR = {
 
 const walkable = (ch) => !SOLID.has(ch) && ch !== '~';
 
-class Bot {
+export class Bot {
   constructor(game) {
     this.g = game;
     this.mv = { x: 0, z: 0 };
