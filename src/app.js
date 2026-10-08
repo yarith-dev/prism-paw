@@ -8,12 +8,14 @@ import { PAINT } from './util.js';
 import { Music, trackFor } from './music.js';
 import { settings } from './settings.js';
 import { applyNovaLook } from './models.js';
-import { clearPortrait } from './portraits.js';
+import { clearPortrait, portrait, SPEAKER_PORTRAIT } from './portraits.js';
+import { warmStage } from './stage.js';
+import { Loading, nextFrame } from './loading.js';
 import { loadLook, storeLook, resolveLook, isUnlocked, WARDROBE } from './data/wardrobe.js';
 import { save } from './save.js';
 import { MARKUP } from './markup.js';
 import { listen, endListeners } from './life.js';
-import { COMICS, WORLD, GRANDPA_LINES } from './data/story.js';
+import { COMICS, WORLD, GRANDPA_LINES, MURALS } from './data/story.js';
 import { level5 } from './levels/level5.js';
 import { level6 } from './levels/level6.js';
 import { level7 } from './levels/level7.js';
@@ -86,6 +88,7 @@ export function start(root, { gateway = null } = {}) {
   // browsers only allow audio after a user gesture: start it on the first one
   for (const ev of ['pointerdown', 'keydown', 'touchstart']) listen(window, ev, () => sfx.unlock(), { once: true, capture: true });
   const screens = new Screens(sfx, main, root);
+  const loading = new Loading(main);
   const input = new Input(renderer.domElement, main.querySelector('#sticks'), main.querySelector('#overlay'));
   main.classList.toggle('touch', input.touch); // thumb-sized buttons, no keyboard hints
   /** Phones get the compact HUD: one slim top row, a one-line objective, smaller panels. */
@@ -100,29 +103,55 @@ export function start(root, { gateway = null } = {}) {
 
   // ------------------------------------------------------------------ flow
 
+  /**
+   * Load a level behind the loading screen. Building it is only the start: its shaders (and its
+   * effects'), textures, portraits and very first frame are all prepared here too, so nothing
+   * stalls once play begins. Resolves false if another load is already under way.
+   */
+  async function enter(def, title, extra = []) {
+    if (loading.busy) return false;
+    screens.close();
+    input.clearSticks();
+    await loading.run(title, [
+      ...extra,
+      ['Building the level', 5, () => game.load(def)],
+      ['Compiling shaders', 4, () => game.compileLevel()],
+      ['Uploading textures', 1, () => game.uploadLevel()],
+      ['Drawing faces', 1, (progress) => warmPortraits(progress)],
+      ['Setting the scene', 2, () => game.firstFrame()],
+    ]);
+    last = performance.now();
+    flushInput();
+    return true;
+  }
+
+  /** Every speaker's portrait (and the murals' art), drawn now rather than when first shown (~10 ms each). */
+  async function warmPortraits(progress) {
+    const keys = [...new Set([...Object.values(SPEAKER_PORTRAIT), ...MURALS.flatMap((m) => m.art)])];
+    for (let i = 0; i < keys.length; i++) {
+      portrait(keys[i]);
+      if (i % 4 === 3) { progress(i / keys.length); await nextFrame(); }
+    }
+  }
+
   let rotateTipShown = false;
-  function playLevel(id) {
+  async function playLevel(id) {
     sfx.unlock();
     music.play(trackFor(LEVELS[id]));
     const intro = LEVELS[id].introComic;
     if (intro && !save.data.seen[`comic:${intro}`]) { playComic(intro, () => playLevel(id)); return; }
-    screens.close();
-    input.clearSticks();
-    game.load(LEVELS[id]);
-    flushInput();
-    last = performance.now();
+    if (!await enter(LEVELS[id], `${id} · ${LEVELS[id].title}`)) return;
+    game.state = 'play';
     if (input.touch && height() > width() && !rotateTipShown) {
       rotateTipShown = true;
       setTimeout(() => hud.toast('Tip: turn your phone sideways for a wider view', 4), 1500);
     }
   }
 
-  function toHub() {
+  async function toHub() {
     music.play('hub');
-    screens.close();
-    input.clearSticks();
-    game.load(hub);
-    flushInput();
+    if (!await enter(hub, hub.title)) return;
+    game.state = 'play';
     if (!save.data.seen.hubTip) {
       save.data.seen.hubTip = true;
       save.write();
@@ -217,9 +246,13 @@ export function start(root, { gateway = null } = {}) {
     });
   }
 
-  function showTitle() {
+  let booted = false;
+  async function showTitle() {
     music.play('title');
-    game.load(level1);
+    // the first load also sets up the comic stage, so the opening comic starts straight away
+    const extra = booted ? [] : [['Setting up the comics', 3, () => warmStage(COMICS.opening.filter((p) => p.set || p.cast))]];
+    if (!await enter(level1, 'Prism Paw', extra)) return;
+    booted = true;
     game.state = 'title';
     hud.hide();
     screens.title({ hasSave: save.hasProgress, touch: input.touch, onContinue: continueGame, onNew: newGame, onExit: gateway && exitToGateway });
@@ -327,6 +360,8 @@ export function start(root, { gateway = null } = {}) {
   renderer.setAnimationLoop(() => {
     // the gateway took the game off its page (it went back to its catalog)
     if (!root.isConnected) { stop(); return; }
+    // nothing is drawn while loading: drawing the new level would compile its shaders on the spot
+    if (loading.busy) { input.endFrame(); last = performance.now(); return; }
     // performance.now() rather than the rAF timestamp: after a hidden tab resumes the
     // timestamp can be older than `last`, and a negative dt blows the physics up to NaN.
     const now = performance.now();
@@ -351,6 +386,6 @@ export function start(root, { gateway = null } = {}) {
   });
 
   // handy for debugging from the console (on the game's own site)
-  if (!gateway) window.prismPaw = { game, save, screens, playLevel, toHub, renderer, music, paint: PAINT, resolution: () => ({ dpr: renderer.getPixelRatio(), autoDpr, max: MAX_DPR }), adaptResolution };
+  if (!gateway) window.prismPaw = { loading, game, save, screens, playLevel, toHub, renderer, music, paint: PAINT, resolution: () => ({ dpr: renderer.getPixelRatio(), autoDpr, max: MAX_DPR }), adaptResolution };
   return stop;
 }

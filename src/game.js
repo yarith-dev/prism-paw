@@ -89,6 +89,7 @@ export class Game {
     this.trapGeo = new THREE.SphereGeometry(1, 18, 12);
     this.trapMat = new THREE.MeshBasicMaterial({ color: '#7fb3ff', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false });
     this.vineMat = new THREE.MeshBasicMaterial({ color: '#8cff7a', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, wireframe: true });
+    this.retired = []; // [scene, level] pairs freed once the next level has compiled its shaders
     this.staticFx = document.createElement('div');
     this.staticFx.id = 'static';
     {
@@ -193,8 +194,8 @@ export class Game {
   load(def) {
     this.def = def;
     this.isHub = !!def.hub;
-    // the old level is freed at the end, once the new one has its shaders (see below)
-    const oldScene = this.scene, oldLevel = this.level;
+    // the old level is freed once the new one has compiled its shaders (see compileLevel)
+    if (this.scene) this.retired.push([this.scene, this.level]);
     const scene = (this.scene = new THREE.Scene());
     const nature = def.theme === 'jungle' || def.theme === 'ruins';
     const docks = def.theme === 'docks';
@@ -385,14 +386,80 @@ export class Game {
     if (def.lines?.intro) this.hud.say(def.lines.intro);
     this.checkStages(true);
     this.updateObjective();
-    // Compile the new level's shaders while the old level's materials still use the same ones:
-    // three.js then reuses them instead of compiling every shader again (300-500 ms per level).
-    this.renderer.compile(scene, this.camera);
-    // upload the full-colour ground for the finale now, not in the middle of it (~100 ms)
+    // play starts once the loading screen has run compileLevel, uploadLevel and firstFrame
+    this.state = 'loading';
+  }
+
+  // ------------------------------------------------------------------ loading (see loading.js)
+
+  /**
+   * Compile every shader the level can use, including those of effects that only appear later
+   * (bullets, beams, bubbles, boss attacks): see effectSamples. Then free the previous level,
+   * whose materials kept the shared shaders alive meanwhile so they were reused, not recompiled.
+   */
+  async compileLevel() {
+    const samples = this.effectSamples();
+    this.scene.add(samples);
+    await this.renderer.compileAsync(this.scene, this.camera);
+    this.scene.remove(samples);
+    for (const [scene, level] of this.retired.splice(0)) {
+      this.disposeScene(scene);
+      level.dispose();
+    }
+  }
+
+  /** Put the level's textures on the GPU now, the finale's full-colour ground included. */
+  uploadLevel() {
+    this.renderer.initTexture(this.level.groundTex);
     if (!this.isHub) this.renderer.initTexture(this.level.waveTexture());
-    if (oldScene) this.disposeScene(oldScene);
-    if (oldLevel) oldLevel.dispose();
-    this.state = 'play';
+  }
+
+  /**
+   * Draw one frame behind the loading screen, effect samples included: geometry goes up to the
+   * GPU, the shadow map is made, and the shadow pass compiles its own shaders.
+   */
+  firstFrame() {
+    const samples = this.effectSamples();
+    samples.position.copy(this.player.pos);
+    this.scene.add(samples);
+    this.updateCamera(0);
+    this.renderer.render(this.scene, this.camera);
+    this.scene.remove(samples);
+  }
+
+  /**
+   * A speck of every kind of material the game creates mid-level, on plain and instanced meshes.
+   * Compiling and drawing these while loading means no effect compiles a shader when it first
+   * appears (a 60-130 ms stall each); and as these materials are never freed, the shaders they
+   * share with short-lived effect materials stay compiled.
+   */
+  effectSamples() {
+    if (!this.samples) {
+      const geo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+      const group = new THREE.Group();
+      const white = new THREE.Color('#ffffff');
+      // Shaders differ by opaque or not (additive blending counts as transparent), sidedness,
+      // vertex colours, a texture, and instancing. Lit materials also differ by the level's
+      // lights, so they're compiled again for each lighting: only the kinds effects really use.
+      const kinds = [
+        ...[{}, { side: THREE.DoubleSide }, { vertexColors: true }, { map: this.beamTex }].map((k) => [THREE.MeshBasicMaterial, k]),
+        ...[{}, { vertexColors: true }].map((k) => [THREE.MeshLambertMaterial, k]),
+      ];
+      for (const [Material, kind] of kinds) {
+        for (const blend of [{}, { transparent: true, opacity: 0.5, depthWrite: false }]) {
+          const material = new Material({ ...blend, ...kind });
+          const tinted = new THREE.InstancedMesh(geo, material, 1);
+          tinted.setColorAt(0, white);
+          for (const mesh of [new THREE.Mesh(geo, material), new THREE.InstancedMesh(geo, material, 1), tinted]) {
+            mesh.frustumCulled = false;
+            mesh.castShadow = mesh.receiveShadow = true;
+            group.add(mesh);
+          }
+        }
+      }
+      this.samples = group;
+    }
+    return this.samples;
   }
 
   spawnPlayer(x, z) {

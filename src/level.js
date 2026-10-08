@@ -7,6 +7,7 @@ const PER = TILE / VOX;           // scenery voxels per tile edge (8)
 const CHUNK = 8;                  // scenery is meshed in columns this many tiles wide
 export const WAVE_SPEED = 26;     // how fast the finale's colour wave spreads, world units a second
 const PX = 16;                    // ground texture pixels per world unit
+const FLOW_DX = [1, -1, 0, 0], FLOW_DY = [0, 0, 1, -1];
 
 export const SOLID = new Set(['#', 'B', 'L', 'W', 'Q', 'P', 'K', 'T', 'D', 'R', 'U', 'G', 'O', 'I', 'J', 'H', 'C']);
 /** Shootable tiles: grey glass panes (G), Chroma geodes (O) and jars of stolen color (J). Drawn as separate meshes, not scenery. */
@@ -129,17 +130,17 @@ export class Level {
     const tx = Math.floor(x / TILE), ty = Math.floor(z / TILE), idx = ty * this.w + tx;
     if (idx === this.flowFrom) return;
     this.flowFrom = idx;
-    const f = this.flow;
+    const f = this.flow, w = this.w, h = this.h;
     f.fill(-1);
-    const q = new Int32Array(this.w * this.h);
+    const q = (this.flowQueue ||= new Int32Array(w * h));
     let head = 0, tail = 0;
     f[idx] = 0; q[tail++] = idx;
     while (head < tail) {
-      const i = q[head++], cx = i % this.w, cy = (i / this.w) | 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = cx + dx, ny = cy + dy;
-        if (nx < 0 || ny < 0 || nx >= this.w || ny >= this.h) continue;
-        const ni = ny * this.w + nx;
+      const i = q[head++], cx = i % w, cy = (i / w) | 0;
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + FLOW_DX[d], ny = cy + FLOW_DY[d];
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const ni = ny * w + nx;
         if (f[ni] !== -1 || blocksMove(this.grid[ny][nx])) continue;
         f[ni] = f[i] + 1; q[tail++] = ni;
       }

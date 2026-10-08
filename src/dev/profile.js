@@ -24,7 +24,7 @@ export async function profile(api, id, { frames = 900, warmup = 180 } = {}) {
   for (const w of par.weapons) { save.data.weapons[w] = true; save.data.ammo[w] = 60; }
   for (const c of ['opening', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'boss-1-4', 'boss-2-4', 'boss-3-4', 'boss-4-4', 'boss-5-4']) save.data.seen[`comic:${c}`] = true;
   save.data.seen.smudge = id !== '1-1';
-  playLevel(id);
+  await playLevel(id);
   api.screens.close();
 
   const bot = new Bot(g), inp = g.input;
@@ -59,9 +59,11 @@ export async function profile(api, id, { frames = 900, warmup = 180 } = {}) {
     render();
     row.render = performance.now() - t;
     if (q) gl.endQuery(ext.TIME_ELAPSED_EXT);
-    Object.assign(row, { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, enemies: g.enemies.length, bullets: g.bullets.length, programs: renderer.info.programs.length });
-    // a hitch: note what changed (new shader programs mean a compile on the spot)
-    if (i >= warmup && row.update + row.render > 25) spikes.push({ frame: i - warmup, update: r2(row.update), render: r2(row.render), programs: row.programs - (rows.at(-1)?.programs ?? row.programs), phase: `${g.phase}:${g.stageIdx}` });
+    const mem = renderer.info.memory;
+    Object.assign(row, { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, enemies: g.enemies.length, bullets: g.bullets.length, programs: renderer.info.programs.length, geometries: mem.geometries, textures: mem.textures, heap: performance.memory?.usedJSHeapSize ?? 0 });
+    // a hitch: note what changed (new shader programs mean a compile on the spot; a smaller heap, a garbage collection)
+    const prev = rows.at(-1) ?? row;
+    if (i >= warmup && row.update + row.render > 25) spikes.push({ frame: i - warmup, update: r2(row.update), render: r2(row.render), programs: row.programs - prev.programs, geometries: row.geometries - prev.geometries, textures: row.textures - prev.textures, gcMB: r2(Math.max(0, prev.heap - row.heap) / 1e6), phase: `${g.phase}:${g.stageIdx}` });
     if (i >= warmup) rows.push(row);
     if (q) pending.push({ q, row: i >= warmup ? row : null });
     if (i % 4 === 3) { await yieldNow(); collect(); }
@@ -78,6 +80,9 @@ export async function profile(api, id, { frames = 900, warmup = 180 } = {}) {
     updateMs: stat('update'), renderCpuMs: stat('render'), gpuMs: ext ? stat('gpu') : 'no timer query',
     calls: stat('calls'), tris: stat('tris'), enemies: stat('enemies'), bullets: stat('bullets'),
     spikes, programs: renderer.info.programs.length,
+    // garbage made per second of play (heap growth between collections) and how many collections
+    allocMBs: r2(rows.reduce((a, r, k) => a + (k && r.heap > rows[k - 1].heap ? r.heap - rows[k - 1].heap : 0), 0) / 1e6 / (rows.length * DT)),
+    gcs: rows.filter((r, k) => k && r.heap < rows[k - 1].heap - 1e6).length,
     heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null,
   };
 }

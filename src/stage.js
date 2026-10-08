@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLOW, model, meshModel, instance } from './voxel.js';
+import { GLOW, model, meshModel, instance, glowMaterial } from './voxel.js';
 import { MESH, NPC, S, SB, SWEEPER, CURATOR, WHACKER, TRAWLER, PAINT_JARS } from './models.js';
 
 /**
@@ -309,6 +309,9 @@ const ROBOT = { drab: MESH.drab, mopper: MESH.mopper, fizz: MESH.fizz, vat: MESH
 const FLOATERS = new Set(['smudge', 'fizz', 'static', 'whale', 'whaleGrey', 'trawler', 'seed', 'spark']);
 
 /** Build one cast member as a group whose origin is at its feet. */
+/** Geometry made for one panel (freed with it); the shared voxel models stay. */
+const owned = (geo) => { geo.userData.stageOwned = true; return geo; };
+
 function actor(name, mods) {
   const opt = mods.has('holo') ? { holo: true } : {};
   const grey = mods.has('grey');
@@ -343,7 +346,7 @@ function actor(name, mods) {
   else if (name === 'rocket') {
     add(rocket(grey));
     if (mods.has('launch')) { // exhaust plume
-      const flame = new THREE.Mesh(new THREE.ConeGeometry(1.4, 7, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ffb36b', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const flame = new THREE.Mesh(owned(new THREE.ConeGeometry(1.4, 7, 12, 1, true)), new THREE.MeshBasicMaterial({ color: '#ffb36b', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
       flame.rotation.x = Math.PI;
       flame.position.y = -3.4;
       g.add(flame);
@@ -357,7 +360,7 @@ function actor(name, mods) {
     // white Harvester beam, or a colored light beam with a paint index mod (beam:0 … beam:5)
     const paint = [...mods].map(Number).find((n) => !Number.isNaN(n));
     const thin = paint !== undefined;
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(thin ? 0.35 : 1.3, thin ? 0.5 : 2.2, 40, 16, 1, true), new THREE.MeshBasicMaterial({ color: thin ? PAINT_JARS[paint % 6] : '#ffffff', transparent: true, opacity: thin ? 0.55 : 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const beam = new THREE.Mesh(owned(new THREE.CylinderGeometry(thin ? 0.35 : 1.3, thin ? 0.5 : 2.2, 40, 16, 1, true)), new THREE.MeshBasicMaterial({ color: thin ? PAINT_JARS[paint % 6] : '#ffffff', transparent: true, opacity: thin ? 0.55 : 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.y = 20;
     g.add(beam);
     g.userData.beam = true;
@@ -414,34 +417,107 @@ const SHOTS = {
 
 // ------------------------------------------------------------------ stage
 
+/**
+ * One renderer serves every comic and the wardrobe, moving its canvas into whichever is open.
+ * (A new WebGL context per comic cost ~50 ms, and compiling its shaders again ~300 ms.)
+ */
+let shared = null;
+const texCache = {};
+function stageRenderer() {
+  if (!shared) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // the same two lights move from panel to panel, so the sun's shadow map is made only once
+    const hemi = new THREE.HemisphereLight();
+    const key = new THREE.DirectionalLight();
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 0.5, far: 80 });
+    key.shadow.bias = -0.0015;
+    shared = { renderer, hemi, key, samples: materialSamples() };
+  }
+  return shared;
+}
+
+/**
+ * A speck of every kind of material a panel can use (holograms, beams, flames, textured ground).
+ * Drawn once while the game loads and never freed, so their shaders stay compiled from panel to
+ * panel instead of being compiled again whenever a panel needs one (up to ~800 ms).
+ */
+function materialSamples() {
+  const geo = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+  const map = groundTex('#ffffff', '#ffffff'); // set up exactly like the panels' ground
+  const group = new THREE.Group();
+  for (const Material of [THREE.MeshBasicMaterial, THREE.MeshLambertMaterial]) {
+    for (const kind of [{}, { side: THREE.DoubleSide }, { vertexColors: true }, { map }]) {
+      for (const blend of [{}, { transparent: true, opacity: 0.5, depthWrite: false }]) {
+        const mesh = new THREE.Mesh(geo, new Material({ ...kind, ...blend }));
+        mesh.frustumCulled = false;
+        mesh.castShadow = mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+    }
+  }
+  return group;
+}
+
+/**
+ * Stage a few panels off screen (while the game loads), so the first comic opens without
+ * compiling shaders or uploading models.
+ */
+export function warmStage(panels) {
+  const stage = new Stage();
+  const { renderer, hemi, key, samples } = stageRenderer();
+  const scene = new THREE.Scene();
+  scene.add(hemi, key, samples);
+  renderer.render(scene, stage.camera);
+  scene.remove(samples);
+  for (const p of panels) stage.show(p);
+  stage.dispose();
+}
+
 export class Stage {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  /** `slot`: the page's canvas.stage, which the shared renderer's canvas takes the place of. */
+  constructor(slot) {
+    ({ renderer: this.renderer, hemi: this.hemi, key: this.key } = stageRenderer());
+    this.canvas = this.renderer.domElement;
+    if (slot) {
+      this.canvas.className = slot.className;
+      slot.replaceWith(this.canvas);
+    }
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 400);
-    this.texCache = {};
+    this.texCache = texCache;
     this.tick = this.tick.bind(this);
+  }
+
+  /** Free a panel's scene: its materials and own geometry (the voxel models are shared). */
+  free(scene) {
+    if (!scene) return;
+    scene.traverse((o) => {
+      if (o.geometry?.userData.stageOwned) o.geometry.dispose();
+      for (const m of [].concat(o.material || [])) if (m !== glowMaterial) m.dispose();
+    });
   }
 
   /** Stage a panel. Returns false when the panel has no stage (title cards, murals). */
   show(p) {
     if (!p.set && !p.cast) return false;
+    // the previous panel is freed after this one is drawn, so the shaders they share stay compiled
+    const previous = this.scene;
     this.scene = new THREE.Scene();
     const set = SETS[p.set || 'none'];
     const mood = MOODS[p.mood || (p.grey ? 'grey' : set.mood)];
     const [sky, gnd, hi, sun, si, sp] = mood;
-    this.scene.add(new THREE.HemisphereLight(sky, gnd, hi));
-    const key = new THREE.DirectionalLight(sun, si);
-    key.position.set(...sp);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    Object.assign(key.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 0.5, far: 80 });
-    key.shadow.bias = -0.0015;
-    this.scene.add(key);
+    this.hemi.color.set(sky);
+    this.hemi.groundColor.set(gnd);
+    this.hemi.intensity = hi;
+    this.key.color.set(sun);
+    this.key.intensity = si;
+    this.key.position.set(...sp);
+    this.scene.add(this.hemi, this.key);
     const grey = !!p.grey;
     const extra = {};
     // ground
@@ -450,7 +526,7 @@ export class Stage {
       const id = `${p.set}:${grey}`;
       const tex = this.texCache[id] ||= groundTex(grey ? greyOf(base) : base, grey ? greyOf(line) : line, step || 32, mode);
       const w = set.groundW || 120;
-      const ground = new THREE.Mesh(new THREE.PlaneGeometry(w * 2, 120), new THREE.MeshLambertMaterial({ map: tex }));
+      const ground = new THREE.Mesh(owned(new THREE.PlaneGeometry(w * 2, 120)), new THREE.MeshLambertMaterial({ map: tex }));
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
       this.scene.add(ground);
@@ -530,6 +606,7 @@ export class Stage {
     this.shake = p.shake ? 1 : 0;
     this.resize();
     this.render(0);
+    this.free(previous);
     return true;
   }
 
@@ -582,9 +659,10 @@ export class Stage {
   start() { if (!this.running) { this.running = true; this.last = 0; requestAnimationFrame(this.tick); } }
   stop() { this.running = false; }
 
+  /** Done with this comic: the renderer stays for the next one. */
   dispose() {
     this.stop();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss?.();
+    this.free(this.scene);
+    this.scene = null;
   }
 }

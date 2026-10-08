@@ -34,4 +34,5 @@ export const MARKUP = `
 <div id="sticks"></div>
 <div id="damage"></div>
 <div id="overlay"></div>
+<div id="loading" class="hidden"><div class="ld"><div class="ld-title"></div><div class="ld-bar"><i></i></div><div class="ld-step"></div></div></div>
 `;

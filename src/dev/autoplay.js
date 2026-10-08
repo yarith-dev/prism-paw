@@ -274,7 +274,7 @@ export class Bot {
 }
 
 /** Play one level with the bot. Deaths don't end the run: they're counted and Nova is restored. */
-export function runLevel(api, id, { world = Number(id[0]), limit = 600 } = {}) {
+export async function runLevel(api, id, { world = Number(id[0]), limit = 600 } = {}) {
   const { game: g, playLevel } = api;
   const par = PAR[world] || PAR[5];
   save.data.upgrades = { armor: 0, speed: 0, power: 0, magnet: 0, zapper: 0, ...par.upgrades };
@@ -283,7 +283,7 @@ export function runLevel(api, id, { world = Number(id[0]), limit = 600 } = {}) {
   save.data.items = { ...par.items };
   save.data.seen.smudge = id !== '1-1';
   for (const c of ['opening', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'boss-1-4', 'boss-2-4', 'boss-3-4', 'boss-4-4', 'boss-5-4']) save.data.seen[`comic:${c}`] = true;
-  playLevel(id);
+  await playLevel(id);
   api.screens.close();
   const bot = new Bot(g);
   const inp = g.input;
@@ -344,7 +344,7 @@ export async function balance(ids, { runs = 1 } = {}) {
   const all = [];
   for (const id of ids) {
     for (let k = 0; k < runs; k++) {
-      all.push(runLevel(api, id));
+      all.push(await runLevel(api, id));
       await new Promise((res) => setTimeout(res, 0));
     }
   }

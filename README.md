@@ -87,6 +87,8 @@ src/
   data/          story and comics, shop, wardrobe
   dev/autoplay.js  dev-only bot used for difficulty tuning (not in the build)
   dev/profile.js   dev-only frame profiler: the bot plays while it times each frame
+  dev/shaders.js   dev-only check that no shader compiles mid-level (the loading screen's job)
+  loading.js     the loading screen: shaders, textures and first frames are prepared behind it
 gateway/         the gateway build's static server and finish step
 ```
 
