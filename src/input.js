@@ -2,11 +2,12 @@
  * Unified input: keyboard + mouse, gamepad, and twin virtual sticks on touch screens.
  * World axes: screen-up is -z, screen-right is +x.
  */
+import { listen } from './life.js';
 
 /** Virtual stick radius (px) and dead zone (fraction of the radius). */
 const STICK_R = 56, DEAD = 0.12;
 export class Input {
-  constructor(canvas, stickLayer) {
+  constructor(canvas, stickLayer, overlay) {
     this.canvas = canvas;
     this.keys = new Set();
     this.pressedOnce = new Set();
@@ -17,18 +18,18 @@ export class Input {
     this.usingTouch = false;
     this.usingPad = false;
 
-    addEventListener('keydown', (e) => {
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code) && !document.querySelector('#overlay.show')) e.preventDefault();
+    listen(window, 'keydown', (e) => {
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code) && !overlay.classList.contains('show')) e.preventDefault();
       if (!this.keys.has(e.code)) this.pressedOnce.add(e.code);
       this.keys.add(e.code);
       this.usingTouch = false;
     });
-    addEventListener('keyup', (e) => this.keys.delete(e.code));
-    addEventListener('blur', () => { this.keys.clear(); this.mouse.down = false; });
+    listen(window, 'keyup', (e) => this.keys.delete(e.code));
+    listen(window, 'blur', () => { this.keys.clear(); this.mouse.down = false; });
 
-    canvas.addEventListener('mousemove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.seen = true; this.usingPad = false; });
+    canvas.addEventListener('mousemove', (e) => { const r = canvas.getBoundingClientRect(); this.mouse.x = e.clientX - r.left; this.mouse.y = e.clientY - r.top; this.mouse.seen = true; this.usingPad = false; });
     canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouse.down = true; this.usingTouch = false; });
-    addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
+    listen(window, 'mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
     canvas.addEventListener('wheel', (e) => this.pressedOnce.add(e.deltaY > 0 ? 'WheelDown' : 'WheelUp'), { passive: true });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -42,23 +43,26 @@ export class Input {
   onTouch(e, phase) {
     e.preventDefault();
     this.usingTouch = true;
+    // positions inside the game's box (it fills the window on the game's own site)
+    const r = this.canvas.getBoundingClientRect();
     for (const t of e.changedTouches) {
+      const tx = t.clientX - r.left, ty = t.clientY - r.top;
       if (phase === 'start') {
-        const side = t.clientX < innerWidth / 2 ? 'left' : 'right';
+        const side = tx < r.width / 2 ? 'left' : 'right';
         if (this.sticks[side]) continue;
-        this.sticks[side] = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: 0, y: 0, el: this.makeStick(t.clientX, t.clientY) };
+        this.sticks[side] = { id: t.identifier, ox: tx, oy: ty, x: 0, y: 0, el: this.makeStick(tx, ty) };
       } else {
         for (const side of ['left', 'right']) {
           const s = this.sticks[side];
           if (!s || s.id !== t.identifier) continue;
           if (phase === 'end') { s.el.remove(); this.sticks[side] = null; continue; }
-          let dx = t.clientX - s.ox, dy = t.clientY - s.oy, d = Math.hypot(dx, dy);
+          let dx = tx - s.ox, dy = ty - s.oy, d = Math.hypot(dx, dy);
           // the base follows a thumb that drifts past the rim, so it never has to slide back
           if (d > STICK_R * 1.25) {
             const k = (d - STICK_R * 1.25) / d;
             s.ox += dx * k; s.oy += dy * k;
             s.el.style.left = `${s.ox}px`; s.el.style.top = `${s.oy}px`;
-            dx = t.clientX - s.ox; dy = t.clientY - s.oy; d = Math.hypot(dx, dy);
+            dx = tx - s.ox; dy = ty - s.oy; d = Math.hypot(dx, dy);
           }
           // a small dead zone, then the full 0..1 range
           const m = Math.min(1, d / STICK_R), mag = m < DEAD ? 0 : (m - DEAD) / (1 - DEAD);

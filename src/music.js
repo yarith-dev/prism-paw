@@ -169,6 +169,12 @@ export class Music {
     if (this.want) { const w = this.want; this.want = null; this.play(w); }
   }
 
+  /** Stops scheduling notes for good (the game was closed). */
+  stop() {
+    clearInterval(this.timer);
+    this.timer = null;
+  }
+
   setVolume(v) {
     this.volume = v;
     if (this.bus) this.bus.gain.setTargetAtTime(v * 0.42, this.sfx.ctx.currentTime, 0.05);

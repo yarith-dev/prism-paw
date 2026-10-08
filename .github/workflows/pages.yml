@@ -1,4 +1,5 @@
-# Builds the game and publishes dist/ to GitHub Pages on every push to main.
+# Builds the game and its gaming-gateway remote (dist/mf/) and publishes dist/ to GitHub Pages on
+# every push to main.
 name: Deploy to GitHub Pages
 
 on:
@@ -20,12 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm build:federation
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

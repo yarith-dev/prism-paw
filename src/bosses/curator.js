@@ -43,11 +43,11 @@ export class Curator extends Boss {
     });
     this.beams = [];
     Object.assign(this, { stage: 0, eyeHp: EYE_HP, fireCd: 2, burstCd: 6, jarTurn: 0, spawnCd: 8, flipCd: 8, beamSpeed: 0.45, light: 1, hurtCd: 0, boltCd: 0, spiral: 0 });
-    document.getElementById('order')?.remove();
+    game.hud.root.querySelector('#order')?.remove();
     this.banner = document.createElement('div');
     this.banner.id = 'order';
     this.banner.textContent = 'NEVER LET THE COLOR RUN OUT';
-    document.getElementById('hud').appendChild(this.banner);
+    game.hud.root.appendChild(this.banner);
     this.placeJars(0);
   }
 

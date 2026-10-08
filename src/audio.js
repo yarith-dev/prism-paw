@@ -30,6 +30,12 @@ export class Sfx {
     if (this.ctx.state === 'suspended') this.ctx.resume();
   }
 
+  /** Silences everything for good (the game was closed). */
+  close() {
+    this.muted = true;
+    this.ctx?.close().catch(() => {});
+  }
+
   /** Rate-limit a sound so hordes don't clip the mix. */
   ok(name, gap) {
     const t = performance.now();

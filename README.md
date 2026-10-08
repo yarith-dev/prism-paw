@@ -26,11 +26,11 @@ The full design and story are in [STORY.md](STORY.md).
 
 ## Run it locally
 
-Needs [Node.js](https://nodejs.org) 20.19+ or 22.12+.
+Needs [Node.js](https://nodejs.org) 20.19+ or 22.12+ and [pnpm](https://pnpm.io).
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Then open the address Vite prints (usually http://localhost:5173).
@@ -38,24 +38,43 @@ Then open the address Vite prints (usually http://localhost:5173).
 ## Build
 
 ```bash
-npm run build
+pnpm build
 ```
 
 The finished game goes in `dist/`: a static site with one HTML, one JS and one CSS file. Asset paths are relative, so `dist/` runs from any folder or host (Vercel, Netlify, GitHub Pages, itch.io).
 
 ## Deploy
 
-**GitHub Pages (live):** `.github/workflows/pages.yml` builds the game and publishes it on every push to `main`.
+**GitHub Pages (live):** `.github/workflows/pages.yml` builds the game and its gateway remote and publishes them on every push to `main`.
 
-**Vercel:** import this repository on [vercel.com/new](https://vercel.com/new). Vercel detects Vite automatically (build command `npm run build`, output `dist`). Every push to `main` redeploys.
+**Vercel:** import this repository on [vercel.com/new](https://vercel.com/new). Vercel detects Vite automatically (build command `pnpm build`, output `dist`). Every push to `main` redeploys.
 
-**Anything else:** run `npm run build` and upload the contents of `dist/`.
+**Anything else:** run `pnpm build` and upload the contents of `dist/`.
+
+## Gaming Gateway
+
+The game can also run inside the Gaming Gateway, a site that hosts several games, as a
+[Module Federation](https://module-federation.io) remote. The remote exposes `./mount`
+([src/gateway/mount.js](src/gateway/mount.js)), which starts the game inside an element on the gateway's page.
+
+```bash
+pnpm build                  # the site, in dist/
+pnpm build:federation       # the remote, in .federation/public/mf/, then copied into dist/mf/
+PORT=3101 node .federation/server/index.mjs   # serves http://localhost:3101/mf/remoteEntry.js
+```
+
+On GitHub Pages the remote is at https://yarith-dev.github.io/prism-paw/mf/remoteEntry.js, with
+`mf/preload.json` (files to boot) and `mf/offline.json` (every file, for offline play) next to it.
+The game's CSS is scoped to `#prism-paw-app`, and it sizes itself to that element, so the same code
+fills the window on its own site and the gateway's element inside the gateway.
 
 ## Project layout
 
 ```
 src/
-  main.js        game flow: title, hub, levels, comics, saving
+  main.js        the game's own site: starts the game in the window
+  app.js         game flow: title, hub, levels, comics, saving
+  gateway/       the Gaming Gateway's mount() entry
   game.js        the game loop, player, enemies, weapons, missions
   level.js       tile maps → voxel scenery
   models.js      every voxel model (Nova, robots, bosses, props)
@@ -67,6 +86,7 @@ src/
   levels/        the 20 levels and the workshop hub
   data/          story and comics, shop, wardrobe
   dev/autoplay.js  dev-only bot used for difficulty tuning (not in the build)
+gateway/         the gateway build's static server and finish step
 ```
 
 Built with [three.js](https://threejs.org) and [Vite](https://vite.dev). No other runtime dependencies.

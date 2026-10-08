@@ -2,6 +2,7 @@ import { portrait, renderNova, renderSmudge } from './portraits.js';
 import { Stage } from './stage.js';
 import { settings, TEXT_SPEEDS } from './settings.js';
 import { THEMES } from './music.js';
+import { listen } from './life.js';
 import { WARDROBE, SLOTS, GROUPS, DEFAULT_LOOK, resolveLook, loadOutfits, storeOutfits } from './data/wardrobe.js';
 import { novaMeshes, smudgeMesh } from './models.js';
 import { drawMap, MAP_LEGEND } from './minimap.js';
@@ -55,12 +56,28 @@ const fmtTime = (t) => { t = Math.round(t); return `${Math.floor(t / 60)}:${Stri
 
 /** Full-screen overlays: one at a time inside #overlay. */
 export class Screens {
-  constructor(sfx) {
-    this.el = $('#overlay');
+  constructor(sfx, main, root) {
+    this.el = $('#overlay', main);
+    this.main = main;
+    this.root = root; // what fullscreen enlarges
     this.sfx = sfx;
     this.current = null;
     this.keyHandler = null;
-    addEventListener('keydown', (e) => this.keyHandler?.(e));
+    listen(window, 'keydown', (e) => {
+      this.keyHandler?.(e);
+      if (!e.defaultPrevented && this.open) this.arrowFocus(e);
+    });
+  }
+
+  /** Arrow keys move between a menu's buttons (keyboard and gamepad-less play). */
+  arrowFocus(e) {
+    const step = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 }[e.code];
+    if (!step) return;
+    const list = [...this.el.querySelectorAll('button:not(:disabled)')].filter((b) => b.offsetParent);
+    if (!list.length) return;
+    e.preventDefault();
+    const i = list.indexOf(document.activeElement);
+    list[i < 0 ? 0 : (i + step + list.length) % list.length].focus({ preventScroll: true });
   }
 
   get open() { return this.el.classList.contains('show'); }
@@ -88,12 +105,12 @@ export class Screens {
       b.addEventListener('click', () => { this.sfx.pickup(); fn(); });
       box.appendChild(b);
     }
-    box.querySelector('button')?.focus();
+    box.querySelector('button')?.focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------- title
 
-  title({ hasSave, touch, onContinue, onNew }) {
+  title({ hasSave, touch, onContinue, onNew, onExit }) {
     const controls = touch
       ? '<p class="controls"><b>Left thumb</b> move · <b>Right thumb</b> aim &amp; fire · tap buttons for items</p>'
       : '<p class="controls"><b>WASD</b> move · <b>Mouse</b> aim/fire · <b>E</b> talk · <b>Q</b> weapon · <b>H G B</b> items · <b>M</b> map</p>';
@@ -106,11 +123,12 @@ export class Screens {
         <div class="buttons"></div>
       </div>`);
     const list = hasSave
-      ? [['Continue', onContinue, true], ['New game', () => this.confirm('Start over? Your Sparks, upgrades and progress will be erased.', onNew, () => this.title({ hasSave, touch, onContinue, onNew }))]]
+      ? [['Continue', onContinue, true], ['New game', () => this.confirm('Start over? Your Sparks, upgrades and progress will be erased.', onNew, () => this.title({ hasSave, touch, onContinue, onNew, onExit }))]]
       : [['Story mode', onNew, true]];
-    const back = () => this.title({ hasSave, touch, onContinue, onNew });
+    const back = () => this.title({ hasSave, touch, onContinue, onNew, onExit });
     if (STORY_ORDER.some(([id]) => save.data.seen?.[`comic:${id}`])) list.push(['Story so far', () => this.storyBook(back)]);
     list.push(['Settings', () => this.settings(back)]);
+    if (onExit) list.push(['All games', onExit]); // inside the gaming gateway: back to its catalog
     this.buttons($('.buttons', el), list);
   }
 
@@ -362,7 +380,7 @@ export class Screens {
     $('.skip', el).addEventListener('click', done);
     this.keyHandler = (e) => { if (['Space', 'Enter', 'ArrowRight'].includes(e.code)) { e.preventDefault(); next(); } };
     render();
-    $('.next', el).focus();
+    $('.next', el).focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------- world map
@@ -492,7 +510,7 @@ export class Screens {
     $('.close', el).addEventListener('click', onClose);
     this.keyHandler = (e) => { if (e.code === 'Escape' || e.code === 'KeyE') onClose(); };
     render();
-    $('.close', el).focus();
+    $('.close', el).focus({ preventScroll: true });
   }
 
   // ---------------------------------------------------------------- full map
@@ -503,7 +521,7 @@ export class Screens {
         <header><h2>${esc(game.def.title)}</h2><button class="close">✕</button></header>
         <canvas></canvas>
         <ul class="legend">${MAP_LEGEND.map(([n, c]) => `<li><i style="background:${c}"></i>${n}</li>`).join('')}</ul>
-        <ul class="obj">${[...document.querySelectorAll('#hud .objectives li')].map((li) => `<li class="${li.className}">${esc(li.textContent)}</li>`).join('')}</ul>
+        <ul class="obj">${[...this.main.querySelectorAll('#hud .objectives li')].map((li) => `<li class="${li.className}">${esc(li.textContent)}</li>`).join('')}</ul>
       </div>`);
     const canvas = $('canvas', el);
     const draw = () => {
@@ -522,23 +540,24 @@ export class Screens {
 
   // ---------------------------------------------------------------- pause / end screens
 
-  pause({ isHub, onResume, onRestart, onWorkshop, onTitle }) {
+  pause({ isHub, onResume, onRestart, onWorkshop, onTitle, onExit }) {
     const el = this.mount('menu', '<div class="panel"><h2>Paused</h2><div class="buttons col"></div></div>');
     const list = [['Resume', onResume, true]];
     if (!isHub) list.push(['Restart mission', onRestart], ['Return to workshop', onWorkshop]);
-    list.push(['Settings', () => this.settings(() => this.pause({ isHub, onResume, onRestart, onWorkshop, onTitle }))]);
+    list.push(['Settings', () => this.settings(() => this.pause({ isHub, onResume, onRestart, onWorkshop, onTitle, onExit }))]);
     // phones and tablets: fullscreen hides the browser bars (not available on iPhone Safari)
-    if (document.body.classList.contains('touch') && document.fullscreenEnabled) {
+    if (this.main.classList.contains('touch') && document.fullscreenEnabled) {
       const full = !!document.fullscreenElement;
       list.push([full ? 'Exit fullscreen' : 'Fullscreen', async () => {
         try {
           if (full) await document.exitFullscreen();
-          else { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape').catch(() => {}); }
+          else { await this.root.requestFullscreen({ navigationUI: 'hide' }); await screen.orientation?.lock?.('landscape').catch(() => {}); }
         } catch { /* refused */ }
         onResume();
       }]);
     }
     list.push(['Title screen', onTitle]);
+    if (onExit) list.push(['All games', onExit]);
     this.buttons($('.buttons', el), list);
   }
 
