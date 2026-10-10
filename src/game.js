@@ -182,6 +182,7 @@ export class Game {
     for (const v of Object.values(NPC)) { shared(v.color); shared(v.grey); shared(v.holo); }
     scene.traverse((o) => {
       if (o.isLight && o.shadow?.map) { o.shadow.map.dispose(); o.shadow.map = null; }
+      if (o.isInstancedMesh) o.dispose();
       if (o.geometry && !keep.has(o.geometry)) o.geometry.dispose();
       for (const m of [].concat(o.material || [])) {
         if (keep.has(m)) continue;
@@ -189,6 +190,17 @@ export class Game {
         m.dispose();
       }
     });
+  }
+
+  updateShadowSize() {
+    const shadow = this.sun?.shadow;
+    if (!shadow) return;
+    const size = settings.graphics === 'fast' ? 1024 : 2048;
+    if (shadow.mapSize.x === size && shadow.mapSize.y === size) return;
+    shadow.dispose();
+    shadow.map = shadow.mapPass = null;
+    shadow.mapSize.set(size, size);
+    shadow.needsUpdate = true;
   }
 
   load(def) {
@@ -220,8 +232,7 @@ export class Game {
       this.sun.color.set('#7f9cff');
     }
     this.sun.castShadow = true;
-    const shadowSize = settings.graphics === 'fast' ? 1024 : 2048;
-    this.sun.shadow.mapSize.set(shadowSize, shadowSize);
+    this.updateShadowSize();
     Object.assign(this.sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 140 });
     this.sun.shadow.bias = -0.0005;
     scene.add(this.sun, this.sun.target);
@@ -280,6 +291,8 @@ export class Game {
     this.murals = [];
     this.interactables = [];
     this.smudge = null;
+    this.fireflies = null;
+    this.playerLight = null;
     this.beacon = null;
     this.boss = null;
     this.beam = null;
