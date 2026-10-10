@@ -353,7 +353,7 @@ export function start(root, { gateway = null } = {}) {
     if (slowT > 1 && autoDpr > 0.75) { autoDpr = Math.max(0.75, autoDpr - 0.25); slowT = 0; applyResolution(); }
     else if (fastT > 8 && autoDpr < MAX_DPR) { autoDpr = Math.min(MAX_DPR, autoDpr + 0.25); fastT = 0; applyResolution(); }
   }
-  settings.onChange((key) => { if (key === 'graphics') { autoDpr = MAX_DPR; applyResolution(); } });
+  settings.onChange((key) => { if (key === 'graphics') { autoDpr = MAX_DPR; applyResolution(); game.updateShadowSize(); } });
   applyResolution();
 
   let titleT = 0;

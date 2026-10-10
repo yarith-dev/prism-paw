@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "vite",
+    "test": "node --test",
     "build": "vite build",
     "build:federation": "vite build -c vite.federation.config.js && node gateway/finish-build.mjs",
     "preview": "vite preview"

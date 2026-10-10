@@ -229,7 +229,11 @@ export class Curator extends Boss {
     this.stage = 2;
     this.light = 0.45;
     this.banner.classList.remove('on');
-    for (const b of this.beams) g.scene.remove(b.mesh);
+    for (const b of this.beams) {
+      g.scene.remove(b.mesh);
+      b.mesh.geometry.dispose();
+      b.mesh.material.dispose();
+    }
     this.beams = [];
     g.noFire = true;
     g.selectWeapon('blaster');
